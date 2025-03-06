@@ -10,7 +10,6 @@ import datetime
 import time
 import random
 
-
 class ToastNotification(QtWidgets.QWidget):
     """Ekranın sağ alt köşesinde kısa süre görünen bildirim penceresi"""
 
