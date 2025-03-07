@@ -10,6 +10,7 @@ NukeChat is a real-time chat application integrated into The Foundry's Nuke, all
 - Send and receive messages in real-time
 - Cross-machine communication within the same network
 - Lightweight and non-intrusive design
+- Send Codes, Expressions and Nodes
 
 ### 2. Advanced Code Formatting
 - Automatic code detection in messages
@@ -24,15 +25,14 @@ NukeChat is a real-time chat application integrated into The Foundry's Nuke, all
 - Message search and filtering capabilities
 
 ### 4. Notification System
-- Toast notifications for new messages
+- Toast notifications for new messages (Right Bottom Corner)
 - In-app message alerts
 - Presence tracking for active users
 
 ## 🛠 Requirements
-
-- Nuke (tested on Nuke 12+)
+- Nuke (tested on Nuke 13+)
 - PySide2
-- Python 3.6+
+- Python 3.9+
 
 ## 📦 Installation
 
@@ -41,24 +41,20 @@ NukeChat is a real-time chat application integrated into The Foundry's Nuke, all
 git clone https://github.com/faithcure/NukeChat.git
 ```
 
-2. Copy the following files to your Nuke plugins directory:
-   - `NukeChat.py`
-   - `NukeChatClipboardSharing.py`
-   - `AvatarManager.py`
+2. Just compy and paste NukeChat folder in your ".nuke" or your NUKE_ENV:
 
 ```
-nukechat/
+NukeChat/                        # MainFolder
 │
 ├── NukeChat.py                  # Main application module
 ├── AvatarManager.py             # Avatar management functionality
 ├── NukeChatClipboardSharing.py  # Script sharing functionality
-│
 └── db/                          # Created automatically for data storage
-    ├── avatars/                 # User avatars
-    ├── nukechat_messages.json   # Chat history
-    ├── presence.json            # Online user tracking
-    ├── notifications.json       # Message notifications
-    └── config.json              # User settings
+    ├── avatars/                 # User avatars Created automatically for data storage
+    ├── nukechat_messages.json   # Chat history Created automatically for data storage
+    ├── presence.json            # Online user tracking Created automatically for data storage
+    ├── notifications.json       # Message notifications Created automatically for data storage
+    └── config.json              # User settings Created automatically for data storage
 ```
 
 3. Ensure the `db` folder is created in the same directory for storing messages and settings.
@@ -67,13 +63,14 @@ nukechat/
 
 ### Starting NukeChat
 1. Open Nuke
-2. Go to `Workspace` > `Panels`
+2. Go to `Workspace` > `Panels` (RMB and in the custom panel)
 3. Select `NukeChat`
 
 ### Sending Messages
 - Type your message in the input area
 - Press `Enter` to send
-- Use `Shift+Enter` for multiline messages
+- If you use the numlock enter(return) button than cursor get the down row.
+- Copy a node or nodes and just press enter or send button. Than, Nodes goes the other user.
 
 ### Code Formatting
 NukeChat automatically detects and formats code blocks:
@@ -86,34 +83,29 @@ NukeChat automatically detects and formats code blocks:
 ### Settings
 - Customize your username in the "Settings" tab
 - Username will be visible to other NukeChat users
+- You can change your own avatar, If you do not select any avatar, the initials of your machine name will be the avatar.
 
 ## 🔧 Configuration
 
 ### Customization
-- Modify `NukeChatCodeFormatter.py` to adjust syntax highlighting
-- Edit color schemes in the various style-related sections
-
-### Extension Support
-NukeChat supports a plugin system. You can create extensions by following the pattern in `NukeChatExtensions.py`.
+- Modify `NukeChat.py` to adjust main features.
+- Or develop your bricks.
 
 ## 📝 Notes
 - Messages are stored locally in JSON files
 - The plugin uses machine hostname for unique identification
 - Recommended for studio/team environments with shared network access
+- If you open too many programs on the same machine, it will identify them as different users. I made this feature to see how many nuke programs are open in my team and which scenes they are working on. In this way, I can communicate according to their work.
 
 ## 🤝 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-[Your License Here - e.g., MIT License]
-
-## 🐞 Reporting Issues
-Please use the GitHub Issues section to report any bugs or suggest features.
 
 ## 🙌 Acknowledgments
 - Nuke by The Foundry
 - PySide2 Community
 - Open Source Contributors
+- Python
+- excitement and enthusiasm
 
 ---
 
