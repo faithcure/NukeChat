@@ -1,8 +1,8 @@
 # NukeChat: A Collaborative Messaging Plugin for Nuke
-
 ## 🚀 Overview
+> This is a challenge and learning project. I created this mainly for self-improvement I haven't focused too much on how widely useful it might be for others, but I wanted to share it with the community regardless. Feel free to use, modify, or learn from it as you see fit!
 
-NukeChat is a powerful messaging and collaboration plugin for Nuke, designed to enhance communication among team members working in visual effects and post-production environments. Built with PySide2, this plugin provides a seamless chat experience directly within the Nuke interface.
+NukeChat is a real-time chat application integrated into The Foundry's Nuke, allowing artists to communicate and share Nuke scripts directly within the software. It provides a collaborative environment for VFX teams working with Nuke. Share nodes and much more!
 
 ## ✨ Features
 
@@ -38,14 +38,28 @@ NukeChat is a powerful messaging and collaboration plugin for Nuke, designed to 
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/nukechat.git
+git clone https://github.com/faithcure/NukeChat.git
 ```
 
 2. Copy the following files to your Nuke plugins directory:
    - `NukeChat.py`
-   - `NukeChatCodeFormatter.py`
-   - `NukeChatExtensions.py`
-   - `NukeChatWithExtensions.py`
+   - `NukeChatClipboardSharing.py`
+   - `AvatarManager.py`
+
+```
+nukechat/
+│
+├── NukeChat.py                  # Main application module
+├── AvatarManager.py             # Avatar management functionality
+├── NukeChatClipboardSharing.py  # Script sharing functionality
+│
+└── db/                          # Created automatically for data storage
+    ├── avatars/                 # User avatars
+    ├── nukechat_messages.json   # Chat history
+    ├── presence.json            # Online user tracking
+    ├── notifications.json       # Message notifications
+    └── config.json              # User settings
+```
 
 3. Ensure the `db` folder is created in the same directory for storing messages and settings.
 
