@@ -10,6 +10,7 @@ import datetime
 import time
 import random
 
+
 class ToastNotification(QtWidgets.QWidget):
     """Ekranın sağ alt köşesinde kısa süre görünen bildirim penceresi"""
 
@@ -293,6 +294,10 @@ class NukeChat(QtWidgets.QWidget):
         # JSON dosyalarını mevcut Python dosyasıyla aynı dizinde "db" klasörüne kaydet
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.network_folder = os.path.join(script_dir, "db")  # Python dosyası ile aynı dizindeki "db" klasörü
+        self.loadOnlineUsers()
+        self.onlineUsersTimer = QtCore.QTimer()
+        self.onlineUsersTimer.timeout.connect(self.updateOnlineUsers)
+        self.onlineUsersTimer.start(5000)
 
         # Eğer "db" klasörü yoksa oluştur
         if not os.path.exists(self.network_folder):
@@ -663,6 +668,91 @@ class NukeChat(QtWidgets.QWidget):
         # Arama ve filtreleme değişkenleri
         self.current_search = ""
         self.current_filter = 0  # 0: Tüm, 1: Kendi, 2: Diğerleri
+
+    def updateOnlineUsers(self):
+        """Online kullanıcı listesini günceller"""
+        # Önce mevcut online kullanıcılar widgetını temizle
+        while self.settingsTabLayout.count() > 2:  # İlk iki widget korunacak
+            item = self.settingsTabLayout.takeAt(2)
+            if item.widget():
+                item.widget().deleteLater()
+
+        # Tekrar online kullanıcıları yükle
+        self.loadOnlineUsers()
+    def loadOnlineUsers(self):
+        """Online kullanıcıları yükler ve görüntüler"""
+        try:
+            # Online kullanıcılar için alan
+            online_users_container = QtWidgets.QWidget()
+            online_users_layout = QtWidgets.QVBoxLayout(online_users_container)
+            online_users_layout.setContentsMargins(0, 0, 0, 0)
+            online_users_layout.setSpacing(10)
+
+            # Online kullanıcılar başlığı
+            online_title = QtWidgets.QLabel("Şu Anda Online")
+            online_title.setStyleSheet("""
+                font-size: 16px;
+                font-weight: bold;
+                color: white;
+                margin-bottom: 10px;
+            """)
+            online_users_layout.addWidget(online_title)
+
+            # Presence dosyasından online kullanıcıları oku
+            online_users = []
+            current_time = time.time()
+            if os.path.exists(self.presence_file):
+                try:
+                    with open(self.presence_file, 'r', encoding='utf-8') as file:
+                        presence_data = json.load(file)
+
+                        # Son 30 saniye içinde aktif olan kullanıcıları bul
+                        for uid, data in presence_data.items():
+                            if current_time - data["last_seen"] < 30:  # 30 saniye içinde aktif
+                                online_users.append(data["user"])
+                except Exception as e:
+                    print(f"Online kullanıcıları okuma hatası: {str(e)}")
+
+            if online_users:
+                # Online kullanıcıları listele
+                for user in online_users:
+                    user_widget = QtWidgets.QWidget()
+                    user_layout = QtWidgets.QHBoxLayout(user_widget)
+                    user_layout.setContentsMargins(10, 5, 10, 5)
+                    user_layout.setSpacing(10)
+
+                    # Online kullanıcı simgesi
+                    online_icon = QtWidgets.QLabel("🟢")
+                    online_icon.setStyleSheet("font-size: 14px;")
+                    user_layout.addWidget(online_icon)
+
+                    # Kullanıcı adı
+                    user_label = QtWidgets.QLabel(user)
+                    user_label.setStyleSheet("""
+                        color: white;
+                        font-size: 14px;
+                    """)
+                    user_layout.addWidget(user_label)
+
+                    user_layout.addStretch(1)
+                    online_users_layout.addWidget(user_widget)
+            else:
+                # Kimse online değilse
+                no_users_label = QtWidgets.QLabel("Şu anda online kullanıcı yok")
+                no_users_label.setStyleSheet("""
+                    color: #888888;
+                    font-style: italic;
+                    padding: 10px;
+                """)
+                online_users_layout.addWidget(no_users_label)
+
+            online_users_layout.addStretch(1)
+
+            # Var olan settingsTabLayout'a ekle
+            self.settingsTabLayout.addWidget(online_users_container)
+
+        except Exception as e:
+            print(f"Online kullanıcıları yükleme hatası: {str(e)}")
 
     def eventFilter(self, obj, event):
         """QTextEdit ile Enter tuşu ile göndermeyi etkinleştirmek için event filter"""
