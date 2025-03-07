@@ -1,17 +1,19 @@
-import nuke
-import PySide2.QtCore as QtCore
-import PySide2.QtWidgets as QtWidgets
-import PySide2.QtGui as QtGui
-from PySide2.QtGui import QIcon
-from nukescripts import panels
-import json
 import os
+import sys
 import socket
 import datetime
 import time
 import random
+import json
+import nuke
+import hashlib
+import PySide2.QtCore as QtCore
+import PySide2.QtWidgets as QtWidgets
+import PySide2.QtGui as QtGui
+from PySide2.QtGui import QIcon, QPixmap, QPainter, QColor, QBrush, QPen, QFont
+from nukescripts import panels
 from NukeChatClipboardSharing import ScriptBubbleWidget, ClipboardHandler, encodeScriptData, decodeScriptData
-
+from AvatarManager import AvatarManager, AvatarUploadDialog
 
 class ToastNotification(QtWidgets.QWidget):
     """Ekranın sağ alt köşesinde kısa süre görünen bildirim penceresi"""
@@ -44,53 +46,34 @@ class ToastNotification(QtWidgets.QWidget):
         # İçerik düzeni (avatar + mesaj)
         content_layout = QtWidgets.QHBoxLayout()
 
-        # Avatar ekle
+        # Avatar göster
         avatar_label = QtWidgets.QLabel()
         avatar_label.setFixedSize(40, 40)
+        avatar_label.setStyleSheet("border-radius: 20px;")  # Yuvarlatılmış avatar
 
-        # avatar.png'yi yüklemeye çalış
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        db_folder = os.path.join(script_dir, "db")
-        avatar_path = os.path.join(db_folder, "avatar.png")
-
-        if os.path.exists(avatar_path):
-            # Avatar dosyası varsa yükle
-            avatar_pixmap = QtGui.QPixmap(avatar_path)
-            avatar_pixmap = avatar_pixmap.scaled(40, 40, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+        if sender:
+            # Gönderen bilgisinden avatar oluştur
+            sender_parts = sender.split(' - ')
+            if len(sender_parts) > 1 and sender_parts[1].startswith('(') and sender_parts[1].endswith(')'):
+                # Kullanıcı adı formatı: "İsim - (bilgisayar_adı)" şeklinde
+                hostname = sender_parts[1][1:-1]  # Parantezleri kaldır
+                # Hostname'i avatar ID'si olarak kullan
+                avatar_pixmap = parent.avatar_manager.load_avatar(hostname, 40)
+            else:
+                # Düz kullanıcı adı - direkt kullanıcı adını avatar ID'si olarak kullan
+                avatar_pixmap = parent.avatar_manager.load_avatar(sender, 40)
         else:
-            # Yoksa varsayılan gri daire oluştur
-            avatar_pixmap = QtGui.QPixmap(40, 40)
-            avatar_pixmap.fill(QtCore.Qt.transparent)
-
-            painter = QtGui.QPainter(avatar_pixmap)
-            painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            painter.setBrush(QtGui.QBrush(QtGui.QColor("#777777")))
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.drawEllipse(0, 0, 40, 40)
-            painter.end()
+            # Gönderen yoksa sistem avatarı kullan
+            avatar_pixmap = parent.avatar_manager.create_default_avatar("system", 40)
 
         avatar_label.setPixmap(avatar_pixmap)
         content_layout.addWidget(avatar_label)
-
-        # Mesaj içerik alanı (gönderen + mesaj)
-        message_container = QtWidgets.QWidget()
-        message_layout = QtWidgets.QVBoxLayout(message_container)
-        message_layout.setContentsMargins(0, 0, 0, 0)
-        message_layout.setSpacing(5)
-
-        if sender:
-            # Gönderen adını ekle
-            sender_label = QtWidgets.QLabel(sender)
-            sender_label.setStyleSheet("color: #444444; font-weight: bold;")
-            message_layout.addWidget(sender_label)
 
         # Mesaj içeriği
         message_label = QtWidgets.QLabel(message)
         message_label.setStyleSheet("color: #333333;")
         message_label.setWordWrap(True)
-        message_layout.addWidget(message_label)
-
-        content_layout.addWidget(message_container, 1)  # 1=stretch faktörü
+        content_layout.addWidget(message_label, 1)  # 1=stretch faktörü
 
         # Kapat butonu - üst sağda
         close_button = QtWidgets.QPushButton("×")
@@ -159,7 +142,6 @@ class ToastNotification(QtWidgets.QWidget):
     def fadeOut(self):
         """Fade-out animasyonunu başlat"""
         self.fade_out_anim.start()
-
 class MessageWidget(QtWidgets.QWidget):
     def __init__(self, username, timestamp, message, is_self=False, parent=None, row_index=0):
         super(MessageWidget, self).__init__(parent)
@@ -188,30 +170,56 @@ class MessageWidget(QtWidgets.QWidget):
         if is_self:
             container_layout.addStretch(1)  # Boş alan ekleyerek sağa yasla
 
-        # Avatar (db klasöründeki avatar.png)
+        # Avatar için AvatarManager kullan
         avatar_label = QtWidgets.QLabel()
         avatar_label.setFixedSize(50, 50)
 
-        # avatar.png'yi yüklemeye çalış
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        db_folder = os.path.join(script_dir, "db")
-        avatar_path = os.path.join(db_folder, "avatar.png")
-
-        if os.path.exists(avatar_path):
-            # Avatar dosyası varsa yükle
-            avatar_pixmap = QtGui.QPixmap(avatar_path)
-            avatar_pixmap = avatar_pixmap.scaled(50, 50, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+        # Ana pencereden AvatarManager referansını al
+        avatar_manager = None
+        if parent and hasattr(parent, 'avatar_manager'):
+            avatar_manager = parent.avatar_manager
         else:
-            # Yoksa varsayılan gri daire oluştur
-            avatar_pixmap = QtGui.QPixmap(50, 50)
-            avatar_pixmap.fill(QtCore.Qt.transparent)
+            # Eğer doğrudan erişilemiyorsa, ana uygulamadan almaya çalış
+            main_app = QtWidgets.QApplication.instance()
+            for widget in main_app.topLevelWidgets():
+                if hasattr(widget, 'avatar_manager'):
+                    avatar_manager = widget.avatar_manager
+                    break
 
-            painter = QtGui.QPainter(avatar_pixmap)
-            painter.setRenderHint(QtGui.QPainter.Antialiasing)
-            painter.setBrush(QtGui.QBrush(QtGui.QColor("#555555")))
-            painter.setPen(QtCore.Qt.NoPen)
-            painter.drawEllipse(0, 0, 50, 50)
-            painter.end()
+        # Kullanıcı adından bilgisayar adını çıkartmaya çalış
+        user_parts = username.split(' - ')
+        if len(user_parts) > 1 and user_parts[1].startswith('(') and user_parts[1].endswith(')'):
+            # Kullanıcı adı formatı: "İsim - (bilgisayar_adı)" şeklinde
+            hostname = user_parts[1][1:-1]  # Parantezleri kaldır
+            user_id = hostname  # Bilgisayar adını kullanıcı ID'si olarak kullan
+        else:
+            # Düz kullanıcı adı - direkt kullanıcı adını kullanıcı ID'si olarak kullan
+            user_id = username.replace(" ", "_").lower()  # Boşlukları alt çizgiyle değiştir
+
+        if avatar_manager:
+            # AvatarManager kullanarak avatar yükle
+            avatar_pixmap = avatar_manager.load_avatar(user_id, 50)
+        else:
+            # AvatarManager bulunamazsa varsayılan avatar oluştur
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            db_folder = os.path.join(script_dir, "db")
+            avatar_path = os.path.join(db_folder, "avatar.png")
+
+            if os.path.exists(avatar_path):
+                # Avatar dosyası varsa yükle
+                avatar_pixmap = QtGui.QPixmap(avatar_path)
+                avatar_pixmap = avatar_pixmap.scaled(50, 50, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
+            else:
+                # Yoksa varsayılan gri daire oluştur
+                avatar_pixmap = QtGui.QPixmap(50, 50)
+                avatar_pixmap.fill(QtCore.Qt.transparent)
+
+                painter = QtGui.QPainter(avatar_pixmap)
+                painter.setRenderHint(QtGui.QPainter.Antialiasing)
+                painter.setBrush(QtGui.QBrush(QtGui.QColor("#555555")))
+                painter.setPen(QtCore.Qt.NoPen)
+                painter.drawEllipse(0, 0, 50, 50)
+                painter.end()
 
         avatar_label.setPixmap(avatar_pixmap)
 
@@ -399,10 +407,13 @@ class NukeChat(QtWidgets.QWidget):
         # JSON dosyalarını mevcut Python dosyasıyla aynı dizinde "db" klasörüne kaydet
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.network_folder = os.path.join(script_dir, "db")  # Python dosyası ile aynı dizindeki "db" klasörü
-        self.loadOnlineUsers()
+
+        # Avatar yönetimi için nesne oluştur (network_folder tanımlandıktan sonra)
+        self.avatar_manager = AvatarManager(self.network_folder)
+
         self.onlineUsersTimer = QtCore.QTimer()
         self.onlineUsersTimer.timeout.connect(self.updateOnlineUsers)
-        self.onlineUsersTimer.start(5000)
+
 
         # Eğer "db" klasörü yoksa oluştur
         if not os.path.exists(self.network_folder):
@@ -420,6 +431,9 @@ class NukeChat(QtWidgets.QWidget):
         # Kullanıcı ayarları için dosya yolu
         self.settings_file = os.path.join(self.network_folder, "nukechat_settings.json")
         self.notifications_file = os.path.join(self.network_folder, "notifications.json")
+        # Presence dosyası yolu
+        self.presence_file = os.path.join(self.network_folder, "presence.json")
+
         self.config_file = None
         # Dosya konumunu ekrana yazdır
         print("NukeChat JSON dosyası şuraya kaydedilecek:", self.chat_file)
@@ -563,6 +577,7 @@ class NukeChat(QtWidgets.QWidget):
         self.messagesTabLayout.setContentsMargins(0, 0, 0, 0)
         self.messagesTabLayout.setSpacing(0)
         self.tabWidget.currentChanged.connect(self.tabChanged)
+        self.statusLabel = QtWidgets.QLabel("Hazır")
         # Mesajların görüntüleneceği alan - arka planı orijinale çevir
         self.scrollArea = QtWidgets.QScrollArea()
         self.scrollArea.setWidgetResizable(True)
@@ -645,6 +660,48 @@ class NukeChat(QtWidgets.QWidget):
         username_layout.addWidget(self.saveSettingsButton)
 
         self.settingsTabLayout.addLayout(username_layout)
+        # Avatar değiştirme butonu
+        avatar_settings_layout = QtWidgets.QHBoxLayout()
+        avatar_label = QtWidgets.QLabel("Avatar:")
+        avatar_label.setStyleSheet("color: white;")
+        avatar_settings_layout.addWidget(avatar_label)
+
+        # Avatar önizleme
+        self.avatar_preview = QtWidgets.QLabel()
+        self.avatar_preview.setFixedSize(70, 70)
+        self.avatar_preview.setStyleSheet("""
+            background-color: #444444;
+            border-radius: 35px;
+            padding: 0px;
+        """)
+        avatar_settings_layout.addWidget(self.avatar_preview)
+
+        # Avatar değiştirme butonu
+        self.changeAvatarButton = QtWidgets.QPushButton("Avatar Değiştir")
+        self.changeAvatarButton.setStyleSheet("""
+            QPushButton {
+                background-color: #555555;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 16px;
+            }
+            QPushButton:hover {
+                background-color: #666666;
+            }
+            QPushButton:pressed {
+                background-color: #777777;
+            }
+        """)
+        self.changeAvatarButton.clicked.connect(self.showAvatarDialog)
+        avatar_settings_layout.addWidget(self.changeAvatarButton)
+        avatar_settings_layout.addStretch(1)
+
+        self.settingsTabLayout.addLayout(avatar_settings_layout)
+
+        # Mevcut avatarı yükle
+        self.updateAvatarPreview()
+
         self.settingsTabLayout.addStretch(1)  # Boşluğu alt kısımda bırakmak için
 
         # Tab'ları ekle
@@ -690,7 +747,7 @@ class NukeChat(QtWidgets.QWidget):
 
         # Mesaj/durum bildirim alanı
         self.notificationLayout = QtWidgets.QHBoxLayout()
-        self.statusLabel = QtWidgets.QLabel("Hazır")
+        # self.statusLabel = QtWidgets.QLabel("Hazır")
         self.statusLabel.setStyleSheet("color: rgba(170, 170, 170, 0.7); font-size: 10px;")
         self.notificationLayout.addWidget(self.statusLabel)
 
@@ -764,8 +821,6 @@ class NukeChat(QtWidgets.QWidget):
         self.presenceTimer.timeout.connect(self.updatePresence)
         self.presenceTimer.start(5000)  # 5 saniyede bir varlığımızı bildir
 
-        # Presence dosyası yolu
-        self.presence_file = os.path.join(self.network_folder, "presence.json")
 
         # Başlangıçta varlığımızı bildir
         self.updatePresence()
@@ -814,6 +869,23 @@ class NukeChat(QtWidgets.QWidget):
         self.clipboardCheckTimer.start(1000)  # Her saniye kontrol et
 
         self.sendButton.clicked.connect(self.handleSendAction)
+
+        self.loadOnlineUsers()
+        self.onlineUsersTimer.start(5000)
+
+    def showAvatarDialog(self):
+        """Avatar yükleme iletişim kutusunu gösterir"""
+        hostname = socket.gethostname()
+        dialog = AvatarUploadDialog(self.avatar_manager, hostname, self.getCurrentUser(), self)
+        if dialog.exec_() == QtWidgets.QDialog.Accepted:
+            # Avatar güncellenmiş olabilir, yeniden yükle
+            self.updateAvatarPreview()
+
+    def updateAvatarPreview(self):
+        """Ayarlar sayfasındaki avatar önizlemesini günceller"""
+        hostname = socket.gethostname()
+        pixmap = self.avatar_manager.load_avatar(hostname, 70)
+        self.avatar_preview.setPixmap(pixmap)
 
     def checkClipboardForScript(self):
         """Panoda Nuke script olup olmadığını kontrol eder"""
@@ -957,6 +1029,7 @@ class NukeChat(QtWidgets.QWidget):
 
         # Tekrar online kullanıcıları yükle
         self.loadOnlineUsers()
+
     def loadOnlineUsers(self):
         """Online kullanıcıları yükler ve görüntüler"""
         try:
@@ -1102,6 +1175,7 @@ class NukeChat(QtWidgets.QWidget):
                 json.dump(config, file, ensure_ascii=False, indent=4)
 
             self.updateStatus("Kullanıcı adı kaydedildi")
+            self.updateAvatarPreview()
         except Exception as e:
             self.updateStatus(f"Ayarlar kaydedilemedi: {str(e)}")
 
@@ -1252,12 +1326,13 @@ class NukeChat(QtWidgets.QWidget):
                     # Kendimize ait mesaj mı kontrol et
                     is_self = msg['user'] == current_user
 
-                    # Mesaj widget'ı oluştur
+                    # Mesaj widget'ı oluştur ve parent olarak self'i (NukeChat) geçir
                     message_widget = MessageWidget(
                         msg['user'],
                         msg['timestamp'],
                         msg['message'],
                         is_self=is_self,
+                        parent=self,  # Burada self (NukeChat) geçiyoruz
                         row_index=idx
                     )
 
