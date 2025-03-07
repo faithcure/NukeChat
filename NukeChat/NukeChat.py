@@ -2,6 +2,7 @@ import nuke
 import PySide2.QtCore as QtCore
 import PySide2.QtWidgets as QtWidgets
 import PySide2.QtGui as QtGui
+from PySide2.QtGui import QIcon
 from nukescripts import panels
 import json
 import os
@@ -9,6 +10,7 @@ import socket
 import datetime
 import time
 import random
+from NukeChatClipboardSharing import ScriptBubbleWidget, ClipboardHandler, encodeScriptData, decodeScriptData
 
 
 class ToastNotification(QtWidgets.QWidget):
@@ -272,20 +274,123 @@ class MessageWidget(QtWidgets.QWidget):
 
         message_layout.addLayout(header_layout)
 
-        # Mesaj metni (baloncuk olmadan)
-        message_label = QtWidgets.QLabel(message)
-        message_label.setWordWrap(True)
-        message_label.setStyleSheet("color: white;")
-
-        # Kendi mesajlarımız için sağa, diğerleri için sola yasla
-        if is_self:
-            message_label.setAlignment(QtCore.Qt.AlignRight)
+        # Mesaj içeriğini kontrol et - normal mesaj mı, script mesajı mı yoksa expression mesajı mı?
+        if "[SCRIPT_DATA]" in message and "[/SCRIPT_DATA]" in message:
+            # Script mesajını işle
+            self._processScriptMessage(message_layout, message, is_self)
+        elif "[EXPRESSION_DATA]" in message and "[/EXPRESSION_DATA]" in message:
+            # Expression mesajını işle
+            self._processExpressionMessage(message_layout, message, is_self)
         else:
-            message_label.setAlignment(QtCore.Qt.AlignLeft)
+            # Normal metin mesajı
+            message_label = QtWidgets.QLabel(message)
+            message_label.setWordWrap(True)
+            message_label.setStyleSheet("color: white;")
 
-        message_layout.addWidget(message_label)
+            # Kendi mesajlarımız için sağa, diğerleri için sola yasla
+            if is_self:
+                message_label.setAlignment(QtCore.Qt.AlignRight)
+            else:
+                message_label.setAlignment(QtCore.Qt.AlignLeft)
+
+            message_layout.addWidget(message_label)
 
         return message_layout
+
+    def _processScriptMessage(self, message_layout, message, is_self):
+        """Script mesajını işler ve görüntüler"""
+        try:
+            # Script verilerini çıkar ve çöz
+            start_tag = "[SCRIPT_DATA]"
+            end_tag = "[/SCRIPT_DATA]"
+            start_idx = message.find(start_tag) + len(start_tag)
+            end_idx = message.find(end_tag)
+
+            if start_idx > -1 and end_idx > -1:
+                encoded_data = message[start_idx:end_idx]
+                script_data = decodeScriptData(encoded_data)
+
+                if script_data:
+                    # Script baloncuğu widget'ını oluştur
+                    script_bubble = ScriptBubbleWidget(script_data, self)
+
+                    # Kendi mesajlarımız için sağa, diğerleri için sola yasla
+                    if is_self:
+                        message_layout.addWidget(script_bubble, 0, QtCore.Qt.AlignRight)
+                    else:
+                        message_layout.addWidget(script_bubble, 0, QtCore.Qt.AlignLeft)
+                else:
+                    # Çözme hatası durumunda normal mesaj olarak göster
+                    error_label = QtWidgets.QLabel("Script verisi çözülemedi!")
+                    error_label.setStyleSheet("color: #FF6666;")
+
+                    if is_self:
+                        error_label.setAlignment(QtCore.Qt.AlignRight)
+                    else:
+                        error_label.setAlignment(QtCore.Qt.AlignLeft)
+
+                    message_layout.addWidget(error_label)
+
+        except Exception as e:
+            # Hata durumunda normal mesaj olarak göster
+            error_text = f"Script gösterme hatası: {str(e)}"
+            error_label = QtWidgets.QLabel(error_text)
+            error_label.setStyleSheet("color: #FF6666;")
+
+            if is_self:
+                error_label.setAlignment(QtCore.Qt.AlignRight)
+            else:
+                error_label.setAlignment(QtCore.Qt.AlignLeft)
+
+            message_layout.addWidget(error_label)
+
+    def _processExpressionMessage(self, message_layout, message, is_self):
+        """Expression mesajını işler ve görüntüler"""
+        try:
+            # Expression verilerini çıkar ve çöz
+            start_tag = "[EXPRESSION_DATA]"
+            end_tag = "[/EXPRESSION_DATA]"
+            start_idx = message.find(start_tag) + len(start_tag)
+            end_idx = message.find(end_tag)
+
+            if start_idx > -1 and end_idx > -1:
+                encoded_data = message[start_idx:end_idx]
+                expression_data = decodeExpressionData(encoded_data)
+
+                if expression_data:
+                    # Expression baloncuğu widget'ını oluştur
+                    from ExpressionHandler import ExpressionBubbleWidget
+                    expression_bubble = ExpressionBubbleWidget(expression_data, self)
+
+                    # Kendi mesajlarımız için sağa, diğerleri için sola yasla
+                    if is_self:
+                        message_layout.addWidget(expression_bubble, 0, QtCore.Qt.AlignRight)
+                    else:
+                        message_layout.addWidget(expression_bubble, 0, QtCore.Qt.AlignLeft)
+                else:
+                    # Çözme hatası durumunda normal mesaj olarak göster
+                    error_label = QtWidgets.QLabel("Expression verisi çözülemedi!")
+                    error_label.setStyleSheet("color: #FF6666;")
+
+                    if is_self:
+                        error_label.setAlignment(QtCore.Qt.AlignRight)
+                    else:
+                        error_label.setAlignment(QtCore.Qt.AlignLeft)
+
+                    message_layout.addWidget(error_label)
+
+        except Exception as e:
+            # Hata durumunda normal mesaj olarak göster
+            error_text = f"Expression gösterme hatası: {str(e)}"
+            error_label = QtWidgets.QLabel(error_text)
+            error_label.setStyleSheet("color: #FF6666;")
+
+            if is_self:
+                error_label.setAlignment(QtCore.Qt.AlignRight)
+            else:
+                error_label.setAlignment(QtCore.Qt.AlignLeft)
+
+            message_layout.addWidget(error_label)
 
 class NukeChat(QtWidgets.QWidget):
     def __init__(self, parent=None):
@@ -577,6 +682,7 @@ class NukeChat(QtWidgets.QWidget):
                 padding: 0px;
                 min-height: 40px;
                 max-height: 100px;
+                font-size: 14px;  /* Font boyutunu burada ayarlayabilirsiniz */
             }
         """)
         self.messageInput.setMinimumHeight(40)
@@ -588,7 +694,11 @@ class NukeChat(QtWidgets.QWidget):
         self.statusLabel.setStyleSheet("color: rgba(170, 170, 170, 0.7); font-size: 10px;")
         self.notificationLayout.addWidget(self.statusLabel)
 
-        # Gönder butonu (ikon)
+        # Gönder butonu SVG ikonu
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        send_svg_path = os.path.join(script_dir, "db", "send.svg")
+
+        # Gönder butonu ayarları
         self.sendButton = QtWidgets.QPushButton()
         self.sendButton.setFixedSize(24, 24)
         self.sendButton.setStyleSheet("""
@@ -603,7 +713,12 @@ class NukeChat(QtWidgets.QWidget):
                 color: #aaaaaa;
             }
         """)
-        self.sendButton.setText("➤")  # Ok ikonu
+
+        if os.path.exists(send_svg_path):
+            self.sendButton.setIcon(QIcon(send_svg_path))
+            self.sendButton.setText("")
+        else:
+            self.sendButton.setText("➤")
 
         self.notificationLayout.addWidget(self.sendButton)
 
@@ -669,6 +784,169 @@ class NukeChat(QtWidgets.QWidget):
         self.current_search = ""
         self.current_filter = 0  # 0: Tüm, 1: Kendi, 2: Diğerleri
 
+        self.clipboard_handler = ClipboardHandler(self)
+        # Yapıştır düğmesi ekle (mesaj giriş alanının yanına)
+        self.pasteScriptButton = QtWidgets.QPushButton()
+        self.pasteScriptButton.setFixedSize(30, 30)
+        self.pasteScriptButton.setToolTip("Nuke Scriptini Yapıştır")
+        self.pasteScriptButton.setStyleSheet("""
+                QPushButton {
+                    background-color: transparent;
+                    border: none;
+                    color: #AAAAAA;
+                    font-weight: bold;
+                    font-size: 16px;
+                }
+                QPushButton:hover {
+                    color: #FFFFFF;
+                }
+                QPushButton:disabled {
+                    color: #555555;
+                }
+            """)
+
+        self.pasteScriptButton.setText("")  # Remove text, just show the icon
+        self.notificationLayout.insertWidget(self.notificationLayout.count() - 1, self.pasteScriptButton)
+
+        # Düzenli aralıklarla pano kontrolü için zamanlayıcı
+        self.clipboardCheckTimer = QtCore.QTimer(self)
+        self.clipboardCheckTimer.timeout.connect(self.checkClipboardForScript)
+        self.clipboardCheckTimer.start(1000)  # Her saniye kontrol et
+
+        self.sendButton.clicked.connect(self.handleSendAction)
+
+    def checkClipboardForScript(self):
+        """Panoda Nuke script olup olmadığını kontrol eder"""
+        # Pano içeriğini kontrol et ve sonucu bir sınıf değişkeninde sakla
+        self.has_script_in_clipboard = self.clipboard_handler.checkClipboard()
+
+        # Eğer panoda Nuke script varsa
+        if self.has_script_in_clipboard:
+            self.statusLabel.setStyleSheet("color: #FF9900; font-weight: bold; font-size: 12px;")
+            self.statusLabel.setText("Enter'a basarak Nuke scriptini paylaşabilirsiniz")
+        else:
+            current_status = self.statusLabel.text()
+            if "Nuke script" in current_status:
+                self.statusLabel.setStyleSheet("color: rgba(255, 153, 0, 0.8); font-weight: bold; font-size: 12px;")
+                self.statusLabel.setText("Hazır")
+
+    def handleSendAction(self):
+        """Gönder düğmesine basıldığında veya Enter tuşuna basıldığında çağrılır"""
+        # Mesaj alanından metni alın
+        message = self.messageInput.toPlainText().strip()
+
+        # Pano içeriğinde Nuke script varsa ve metin alanı boşsa
+        if not message and self.has_script_in_clipboard:
+            # Script'i gönder
+            self.pasteNukeScript()
+        else:
+            # Normal mesajı gönder
+            self.sendMessage()
+
+    def pasteNukeScript(self):
+        """Panodan Nuke scriptini alır ve sohbette paylaşır"""
+        # Panodan script verilerini al
+        script_data = self.clipboard_handler.getScriptFromClipboard()
+
+        if script_data:
+            # Açıklama eklemek için dialog oluştur
+            description_dialog = QtWidgets.QDialog(self)
+            description_dialog.setWindowTitle("Script Açıklaması")
+            description_dialog.setMinimumWidth(400)
+            description_dialog.setStyleSheet("""
+                QDialog {
+                    background-color: #333333;
+                    color: white;
+                }
+                QLabel {
+                    color: white;
+                }
+                QLineEdit {
+                    background-color: #444444;
+                    color: white;
+                    border: 1px solid #555555;
+                    border-radius: 4px;
+                    padding: 5px;
+                }
+                QPushButton {
+                    background-color: #555555;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    padding: 6px 12px;
+                }
+                QPushButton:hover {
+                    background-color: #666666;
+                }
+            """)
+
+            dialog_layout = QtWidgets.QVBoxLayout(description_dialog)
+
+            # Açıklama etiketi
+            desc_label = QtWidgets.QLabel("Script parçası için açıklama girin:")
+            dialog_layout.addWidget(desc_label)
+
+            # Açıklama girişi
+            desc_input = QtWidgets.QLineEdit()
+            desc_input.setPlaceholderText("Örn: Blur Effect, Transform Nodları, vb.")
+            dialog_layout.addWidget(desc_input)
+
+            # Buton düzeni
+            button_layout = QtWidgets.QHBoxLayout()
+            cancel_button = QtWidgets.QPushButton("İptal")
+            send_button = QtWidgets.QPushButton("Gönder")
+            send_button.setDefault(True)
+
+            button_layout.addWidget(cancel_button)
+            button_layout.addWidget(send_button)
+            dialog_layout.addLayout(button_layout)
+
+            # Buton bağlantıları
+            cancel_button.clicked.connect(description_dialog.reject)
+            send_button.clicked.connect(description_dialog.accept)
+
+            # Dialog'u göster
+            result = description_dialog.exec_()
+
+            if result == QtWidgets.QDialog.Accepted:
+                # Açıklama ekle
+                script_data["description"] = desc_input.text()
+                # Script mesajını gönder
+                self.sendScriptMessage(script_data)
+
+        else:
+            self.updateStatus("Panoda geçerli bir Nuke script verisi bulunamadı")
+
+    def sendScriptMessage(self, script_data):
+        """Script verisini mesaj olarak gönderir"""
+        try:
+            # Script verisini kodla
+            encoded_data = encodeScriptData(script_data)
+
+            if encoded_data:
+                # Özel formatla script mesajı gönder
+                script_message = f"[SCRIPT_DATA]{encoded_data}[/SCRIPT_DATA]"
+
+                # Mesajı kaydet ve gönder (normal mesaj gönderme fonksiyonunu kullan)
+                if self.saveMessage(script_message):
+                    # Mesajları güncelleyerek göster
+                    self.loadMessages()
+
+                    # Durum çubuğunu güncelle
+                    description = script_data.get("description", "")
+                    if description:
+                        status_text = f"\"{description}\" script parçası paylaşıldı"
+                    else:
+                        status_text = "Script parçası paylaşıldı"
+
+                    self.updateStatus(status_text)
+
+                    # Mesaj kutusunu temizle (bu zaten boş olmalı ama yine de temizleyelim)
+                    self.messageInput.clear()
+
+        except Exception as e:
+            self.updateStatus(f"Script mesajı gönderme hatası: {str(e)}")
+
     def updateOnlineUsers(self):
         """Online kullanıcı listesini günceller"""
         # Önce mevcut online kullanıcılar widgetını temizle
@@ -721,9 +999,13 @@ class NukeChat(QtWidgets.QWidget):
                     user_layout.setContentsMargins(10, 5, 10, 5)
                     user_layout.setSpacing(10)
 
-                    # Online kullanıcı simgesi
-                    online_icon = QtWidgets.QLabel("🟢")
-                    online_icon.setStyleSheet("font-size: 14px;")
+                    # Online kullanıcı simgesi - HTML ile renkli daire
+                    online_icon = QtWidgets.QLabel("•")
+                    online_icon.setStyleSheet("""
+                            color: #00CC00;
+                            font-size: 24px;
+                            font-weight: bold;
+                        """)
                     user_layout.addWidget(online_icon)
 
                     # Kullanıcı adı
@@ -758,7 +1040,7 @@ class NukeChat(QtWidgets.QWidget):
         """QTextEdit ile Enter tuşu ile göndermeyi etkinleştirmek için event filter"""
         if obj is self.messageInput and event.type() == QtCore.QEvent.KeyPress:
             if event.key() == QtCore.Qt.Key_Return and not event.modifiers() & QtCore.Qt.ShiftModifier:
-                self.sendMessage()
+                self.handleSendAction()
                 return True
             if event.key() == QtCore.Qt.Key_Return and event.modifiers() & QtCore.Qt.ShiftModifier:
                 # Shift+Enter ile yeni satır
@@ -1086,8 +1368,8 @@ class NukeChat(QtWidgets.QWidget):
                 self.createNotification(message)
                 # Mesajları güncelleyerek göster
                 self.loadMessages()
-            # Mesaj alanını temizle
-            self.messageInput.clear()
+                # Mesaj alanını temizle
+                self.messageInput.clear()
 
 
     def createNotification(self, message):
