@@ -1,6 +1,6 @@
 # NukeChat: A Collaborative Messaging Plugin for Nuke
 ## 🚀 Overview
-> This is a challenge and learning project. I created this mainly for self-improvement I haven't focused too much on how widely useful it might be for others, but I wanted to share it with the community regardless. Feel free to use, modify, or learn from it as you see fit!
+> This project is something I asked myself "How do I do this?" when I was first learning Python, and then forgot about. It came to my mind during my free time, and I'm presenting it to you. I wanted to share it with the community regardless. Feel free to use, modify, or learn from it as you see fit!
 
 NukeChat is a real-time chat application integrated into The Foundry's Nuke, allowing artists to communicate and share Nuke scripts directly within the software. It provides a collaborative environment for VFX teams working with Nuke. Share nodes and much more!
 
