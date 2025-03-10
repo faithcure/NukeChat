@@ -1,7 +1,7 @@
 """
 NukeChatClipboardSharing.py
 
-Bu modül, Nuke script parçalarını kopyala-yapıştır yöntemiyle NukeChat üzerinden paylaşmayı sağlar.
+This module enables sharing Nuke script parts through NukeChat using copy-paste method.
 """
 
 import nuke
@@ -15,17 +15,17 @@ import re
 
 
 class ScriptBubbleWidget(QtWidgets.QWidget):
-    """Nuke script parçasını baloncuk şeklinde gösteren widget"""
+    """Widget that displays Nuke script part as a bubble"""
 
     def __init__(self, script_data, parent=None):
         super(ScriptBubbleWidget, self).__init__(parent)
 
-        # Ana düzen
+        # Main layout
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
 
-        # Script baloncuğu container'ı
+        # Script bubble container
         self.bubble = QtWidgets.QFrame()
         self.bubble.setObjectName("scriptBubble")
         self.bubble.setStyleSheet("""
@@ -40,10 +40,10 @@ class ScriptBubbleWidget(QtWidgets.QWidget):
         bubble_layout.setContentsMargins(10, 10, 10, 10)
         bubble_layout.setSpacing(8)
 
-        # Başlık düzeni
+        # Title layout
         header_layout = QtWidgets.QHBoxLayout()
 
-        # Script ikonu
+        # Script icon
         icon_label = QtWidgets.QLabel()
         icon_label.setFixedSize(16, 16)
         icon_label.setStyleSheet("""
@@ -53,33 +53,33 @@ class ScriptBubbleWidget(QtWidgets.QWidget):
         """)
         header_layout.addWidget(icon_label)
 
-        # Node sayısını belirle
+        # Determine the number of nodes
         node_count = self.countNodes(script_data["script"])
         node_text = f"{node_count} Node" if node_count == 1 else f"{node_count} Nodes"
 
-        # Açıklama metnini kontrol et - varsa açıklamayı göster, yoksa default değeri göster
+        # Check the description text - show description if available, otherwise show default value
         description = script_data.get("description", "")
         if description:
             header_title = QtWidgets.QLabel(f"<b>{description}</b> ({node_text})")
         else:
-            header_title = QtWidgets.QLabel(f"<b>Script Parçası</b> ({node_text})")
+            header_title = QtWidgets.QLabel(f"<b>Script Part</b> ({node_text})")
 
         header_title.setStyleSheet("color: #FFFFFF; font-size: 13px;")
         header_layout.addWidget(header_title)
         header_layout.addStretch(1)
 
-        # Checkbox'u kaldırdık - artık burada seçim kutusu yok
+        # Removed checkbox - there's no selection box here anymore
 
         bubble_layout.addLayout(header_layout)
 
-        # Çizgi ayırıcı
+        # Line separator
         line = QtWidgets.QFrame()
         line.setFrameShape(QtWidgets.QFrame.HLine)
         line.setFrameShadow(QtWidgets.QFrame.Sunken)
         line.setStyleSheet("border: 1px solid #444444;")
         bubble_layout.addWidget(line)
 
-        # Script kod alanı
+        # Script code area
         script_text = QtWidgets.QTextEdit()
         script_text.setReadOnly(True)
         script_text.setPlainText(script_data["script"])
@@ -94,15 +94,15 @@ class ScriptBubbleWidget(QtWidgets.QWidget):
             }
         """)
 
-        # Script alanı için maksimum yükseklik
+        # Maximum height for script area
         script_text.setMaximumHeight(250)
         bubble_layout.addWidget(script_text)
 
-        # Buton için düzen
+        # Layout for button
         buttons_layout = QtWidgets.QHBoxLayout()
 
-        # "Kopyala" butonu
-        copy_button = QtWidgets.QPushButton("Kopyala")
+        # "Copy" button
+        copy_button = QtWidgets.QPushButton("Copy")
         copy_button.setStyleSheet("""
             QPushButton {
                 background-color: #3D3D3D;
@@ -126,54 +126,54 @@ class ScriptBubbleWidget(QtWidgets.QWidget):
         layout.addWidget(self.bubble)
 
     def copyScriptToClipboard(self, script):
-        """Script'i panoya kopyalar"""
+        """Copies script to clipboard"""
         clipboard = QtWidgets.QApplication.clipboard()
         clipboard.setText(script)
 
-        # Kullanıcıya durum çubuğunda geri bildirim göster
+        # Show feedback to user in status bar
         try:
-            # Nuke ana modülünde bir global statusbar var mı kontrol et
+            # Check if there's a global statusbar in Nuke main module
             import nuke
             if hasattr(nuke, 'NukeChat') and hasattr(nuke.NukeChat, 'updateStatus'):
-                nuke.NukeChat.updateStatus("Script panoya kopyalandı!")
+                nuke.NukeChat.updateStatus("Script copied to clipboard!")
             else:
-                # Alternatif olarak QToolTip ile göster
+                # Alternatively show with QToolTip
                 tooltip = QtWidgets.QToolTip
-                tooltip.showText(QtGui.QCursor.pos(), "Script panoya kopyalandı!")
+                tooltip.showText(QtGui.QCursor.pos(), "Script copied to clipboard!")
         except:
-            # Nuke yoksa veya hata oluşursa basit bir tooltip göster
+            # If Nuke is not available or error occurs, show a simple tooltip
             tooltip = QtWidgets.QToolTip
-            tooltip.showText(QtGui.QCursor.pos(), "Script panoya kopyalandı!")
+            tooltip.showText(QtGui.QCursor.pos(), "Script copied to clipboard!")
 
     def countNodes(self, script):
-        """Script içindeki node sayısını belirler"""
-        # Node sayısını bulmak için basit bir sayım kullan
-        # Bu metot, daha karmaşık scriptler için geliştirilmelidir
+        """Determines the number of nodes in the script"""
+        # Use a simple count to find the number of nodes
+        # This method should be improved for more complex scripts
         node_count = 0
         for line in script.splitlines():
-            # Node satırları genellikle bir isim ve süslü parantez içerir
+            # Node lines typically contain a name and curly brackets
             if re.search(r'\w+\s*\{', line) and not line.strip().startswith('#'):
                 node_count += 1
         return node_count
 
 
 class ClipboardHandler(QtCore.QObject):
-    """Pano değişikliklerini izler ve Nuke script parçalarını tanımlar"""
+    """Monitors clipboard changes and identifies Nuke script parts"""
 
     def __init__(self, parent=None):
         super(ClipboardHandler, self).__init__(parent)
         self.parent = parent
 
-        # Pano nesnesine referans al
+        # Get reference to the clipboard object
         self.clipboard = QtWidgets.QApplication.clipboard()
 
     def checkClipboard(self):
-        """Pano içeriğini kontrol eder ve Nuke script parçasıysa True döner"""
+        """Checks clipboard content and returns True if it's a Nuke script part"""
         try:
-            # Panodaki metni al
+            # Get text from clipboard
             clipboard_text = self.clipboard.text()
 
-            # Nuke script parçası olup olmadığını kontrol et
+            # Check if it's a Nuke script part
             if clipboard_text and self.isNukeScript(clipboard_text):
                 return True
         except:
@@ -182,8 +182,8 @@ class ClipboardHandler(QtCore.QObject):
         return False
 
     def isNukeScript(self, text):
-        """Metnin Nuke script parçası olup olmadığını kontrol eder"""
-        # Nuke script'lerinin tipik imzalarını kontrol et
+        """Checks if the text is a Nuke script part"""
+        # Check for typical signatures of Nuke scripts
         nuke_indicators = [
             "set cut_paste_input",
             "version",
@@ -199,21 +199,21 @@ class ClipboardHandler(QtCore.QObject):
             "ypos"
         ]
 
-        # Metinde bu göstergelerden en az birkaçı varsa muhtemelen bir Nuke script'idir
+        # If the text contains at least a few of these indicators, it's probably a Nuke script
         indicator_count = 0
         for indicator in nuke_indicators:
             if indicator in text:
                 indicator_count += 1
 
-        # En az 3 gösterge varsa, bir Nuke script olarak kabul et
+        # Accept as a Nuke script if there are at least 3 indicators
         return indicator_count >= 3
 
     def getScriptFromClipboard(self):
-        """Panodan Nuke script'ini alır ve işler"""
+        """Gets Nuke script from clipboard and processes it"""
         clipboard_text = self.clipboard.text()
 
         if clipboard_text and self.isNukeScript(clipboard_text):
-            # Script verisi olarak formatla
+            # Format as script data
             script_data = {
                 "script": clipboard_text,
                 "type": "script"
@@ -225,30 +225,30 @@ class ClipboardHandler(QtCore.QObject):
 
 
 def encodeScriptData(script_data):
-    """Script verilerini bir JSON stringine dönüştürür, sonra base64 ile kodlar"""
+    """Converts script data to a JSON string, then encodes with base64"""
     try:
-        # Script verilerini JSON string'e dönüştür
+        # Convert script data to JSON string
         json_str = json.dumps(script_data, ensure_ascii=False)
 
-        # Base64 ile kodla
+        # Encode with base64
         encoded = base64.b64encode(json_str.encode('utf-8')).decode('utf-8')
 
         return encoded
     except Exception as e:
-        print(f"Script verisi kodlama hatası: {str(e)}")
+        print(f"Script data encoding error: {str(e)}")
         return None
 
 
 def decodeScriptData(encoded_data):
-    """Base64 ile kodlanmış JSON script verilerini çözer"""
+    """Decodes base64 encoded JSON script data"""
     try:
-        # Base64 kodunu çöz
+        # Decode base64 code
         json_str = base64.b64decode(encoded_data.encode('utf-8')).decode('utf-8')
 
-        # JSON'dan dict'e dönüştür
+        # Convert from JSON to dict
         script_data = json.loads(json_str)
 
         return script_data
     except Exception as e:
-        print(f"Script verisi çözme hatası: {str(e)}")
+        print(f"Script data decoding error: {str(e)}")
         return None
