@@ -16,22 +16,22 @@ from NukeChatClipboardSharing import ScriptBubbleWidget, ClipboardHandler, encod
 from AvatarManager import AvatarManager, AvatarUploadDialog
 
 class ToastNotification(QtWidgets.QWidget):
-    """Ekranın sağ alt köşesinde kısa süre görünen bildirim penceresi"""
+    """Notification window that appears briefly in the bottom right corner of the screen"""
 
     def __init__(self, message, sender="", parent=None, duration=3000):
         super(ToastNotification, self).__init__(parent)
         self.duration = duration
 
-        # Pencere ayarları
+        # Window settings
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnTopHint)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         self.setAttribute(QtCore.Qt.WA_ShowWithoutActivating)
 
-        # Ana düzen
+        # Main layout
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
 
-        # Bildirim paneli - AÇIK GRİ arka plan
+        # Notification panel - LIGHT GRAY background
         self.notification_frame = QtWidgets.QFrame()
         self.notification_frame.setStyleSheet("""
             QFrame {
@@ -43,39 +43,39 @@ class ToastNotification(QtWidgets.QWidget):
         frame_layout = QtWidgets.QVBoxLayout(self.notification_frame)
         frame_layout.setContentsMargins(10, 10, 10, 10)
 
-        # İçerik düzeni (avatar + mesaj)
+        # Content layout (avatar + message)
         content_layout = QtWidgets.QHBoxLayout()
 
-        # Avatar göster
+        # Show avatar
         avatar_label = QtWidgets.QLabel()
         avatar_label.setFixedSize(40, 40)
-        avatar_label.setStyleSheet("border-radius: 20px;")  # Yuvarlatılmış avatar
+        avatar_label.setStyleSheet("border-radius: 20px;")  # Rounded avatar
 
         if sender:
-            # Gönderen bilgisinden avatar oluştur
+            # Create avatar from sender information
             sender_parts = sender.split(' - ')
             if len(sender_parts) > 1 and sender_parts[1].startswith('(') and sender_parts[1].endswith(')'):
-                # Kullanıcı adı formatı: "İsim - (bilgisayar_adı)" şeklinde
-                hostname = sender_parts[1][1:-1]  # Parantezleri kaldır
-                # Hostname'i avatar ID'si olarak kullan
+                # Username format: "Name - (computer_name)"
+                hostname = sender_parts[1][1:-1]  # Remove parentheses
+                # Use hostname as avatar ID
                 avatar_pixmap = parent.avatar_manager.load_avatar(hostname, 40)
             else:
-                # Düz kullanıcı adı - direkt kullanıcı adını avatar ID'si olarak kullan
+                # Plain username - use username directly as avatar ID
                 avatar_pixmap = parent.avatar_manager.load_avatar(sender, 40)
         else:
-            # Gönderen yoksa sistem avatarı kullan
+            # If no sender, use system avatar
             avatar_pixmap = parent.avatar_manager.create_default_avatar("system", 40)
 
         avatar_label.setPixmap(avatar_pixmap)
         content_layout.addWidget(avatar_label)
 
-        # Mesaj içeriği
+        # Message content
         message_label = QtWidgets.QLabel(message)
         message_label.setStyleSheet("color: #333333;")
         message_label.setWordWrap(True)
-        content_layout.addWidget(message_label, 1)  # 1=stretch faktörü
+        content_layout.addWidget(message_label, 1)  # 1=stretch factor
 
-        # Kapat butonu - üst sağda
+        # Close button - top right
         close_button = QtWidgets.QPushButton("×")
         close_button.setFixedSize(20, 20)
         close_button.setStyleSheet("""
@@ -96,121 +96,121 @@ class ToastNotification(QtWidgets.QWidget):
         frame_layout.addLayout(content_layout)
         layout.addWidget(self.notification_frame)
 
-        # Otomatik kapanma için zamanlayıcı
+        # Timer for auto-close
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.fadeOut)
         self.timer.setSingleShot(True)
 
-        # Animasyon için opacity efekti
+        # Opacity effect for animation
         self.opacity_effect = QtWidgets.QGraphicsOpacityEffect(self)
         self.opacity_effect.setOpacity(0.0)
         self.setGraphicsEffect(self.opacity_effect)
 
-        # Fade-in animasyonu
+        # Fade-in animation
         self.fade_in_anim = QtCore.QPropertyAnimation(self.opacity_effect, b"opacity")
         self.fade_in_anim.setDuration(300)
         self.fade_in_anim.setStartValue(0.0)
         self.fade_in_anim.setEndValue(1.0)
 
-        # Fade-out animasyonu
+        # Fade-out animation
         self.fade_out_anim = QtCore.QPropertyAnimation(self.opacity_effect, b"opacity")
         self.fade_out_anim.setDuration(300)
         self.fade_out_anim.setStartValue(1.0)
         self.fade_out_anim.setEndValue(0.0)
         self.fade_out_anim.finished.connect(self.close)
 
-        # Boyut
+        # Size
         self.setFixedWidth(300)
         self.adjustSize()
 
     def showEvent(self, event):
-        """Gösterme olayını yakala ve animasyonları başlat"""
+        """Capture show event and start animations"""
         super(ToastNotification, self).showEvent(event)
 
-        # Ekranın sağ alt köşesinde konumlandır
+        # Position in the bottom right corner of the screen
         desktop = QtWidgets.QApplication.desktop()
         screen_rect = desktop.screenGeometry()
         self.move(screen_rect.width() - self.width() - 20,
                   screen_rect.height() - self.height() - 20)
 
-        # Fade-in animasyonu başlat
+        # Start fade-in animation
         self.fade_in_anim.start()
 
-        # Belirli bir süre sonra kapanma zamanlayıcısını başlat
+        # Start close timer after a certain duration
         self.timer.start(self.duration)
 
     def fadeOut(self):
-        """Fade-out animasyonunu başlat"""
+        """Start fade-out animation"""
         self.fade_out_anim.start()
 class MessageWidget(QtWidgets.QWidget):
     def __init__(self, username, timestamp, message, is_self=False, parent=None, row_index=0):
         super(MessageWidget, self).__init__(parent)
 
-        # Satır rengini alternatif yap - koyu gri ve biraz daha koyu gri
+        # Make row color alternate - dark gray and slightly darker gray
         if row_index % 2 == 0:
             bg_color = "#333333"
         else:
             bg_color = "#2D2D2D"
 
-        # Tüm widget arka planını ayarla
+        # Set the entire widget background
         self.setStyleSheet(f"background-color: {bg_color}; color: white;")
 
-        # Ana düzeni genişlet ve tüm alanı doldurmasını sağla
+        # Expand main layout and make it fill the entire area
         main_layout = QtWidgets.QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)  # Boşluk olmasın
+        main_layout.setSpacing(0)  # No spacing
 
-        # İçerik konteyneri - tüm genişliği kaplaması için genişletildi
+        # Content container - expanded to cover the full width
         container = QtWidgets.QWidget()
         container.setStyleSheet(f"background-color: {bg_color};")
         container.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Preferred)
         container_layout = QtWidgets.QHBoxLayout(container)
 
-        # Kendi mesajlarımız sağda, diğerleri solda
+        # Our own messages on the right, others on the left
         if is_self:
-            container_layout.addStretch(1)  # Boş alan ekleyerek sağa yasla
+            container_layout.addStretch(1)  # Add empty space to align right
 
-        # Avatar için AvatarManager kullan
+        # Use AvatarManager for avatar
         avatar_label = QtWidgets.QLabel()
         avatar_label.setFixedSize(50, 50)
 
-        # Ana pencereden AvatarManager referansını al
+        # Get AvatarManager reference from parent
         avatar_manager = None
         if parent and hasattr(parent, 'avatar_manager'):
             avatar_manager = parent.avatar_manager
         else:
-            # Eğer doğrudan erişilemiyorsa, ana uygulamadan almaya çalış
+            # If can't access directly, try to get from main application
             main_app = QtWidgets.QApplication.instance()
             for widget in main_app.topLevelWidgets():
                 if hasattr(widget, 'avatar_manager'):
                     avatar_manager = widget.avatar_manager
                     break
 
-        # Kullanıcı adından bilgisayar adını çıkartmaya çalış
+        # Try to extract computer name from username
         user_parts = username.split(' - ')
         if len(user_parts) > 1 and user_parts[1].startswith('(') and user_parts[1].endswith(')'):
-            # Kullanıcı adı formatı: "İsim - (bilgisayar_adı)" şeklinde
-            hostname = user_parts[1][1:-1]  # Parantezleri kaldır
-            user_id = hostname  # Bilgisayar adını kullanıcı ID'si olarak kullan
+            # Username format: "Name - (computer_name)"
+            hostname = user_parts[1][1:-1]  # Remove parentheses
+            user_id = hostname  # Use computer name as user ID
         else:
-            # Düz kullanıcı adı - direkt kullanıcı adını kullanıcı ID'si olarak kullan
-            user_id = username.replace(" ", "_").lower()  # Boşlukları alt çizgiyle değiştir
+            # Plain username - use username directly as user ID
+            user_id = username.replace(" ", "_").lower()  # Replace spaces with underscores
 
         if avatar_manager:
-            # AvatarManager kullanarak avatar yükle
+            # Load avatar using AvatarManager
             avatar_pixmap = avatar_manager.load_avatar(user_id, 50)
         else:
-            # AvatarManager bulunamazsa varsayılan avatar oluştur
+            # If AvatarManager not found, create default avatar
             script_dir = os.path.dirname(os.path.abspath(__file__))
             db_folder = os.path.join(script_dir, "db")
             avatar_path = os.path.join(db_folder, "avatar.png")
 
             if os.path.exists(avatar_path):
-                # Avatar dosyası varsa yükle
+                # Load avatar file if it exists
                 avatar_pixmap = QtGui.QPixmap(avatar_path)
                 avatar_pixmap = avatar_pixmap.scaled(50, 50, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
             else:
-                # Yoksa varsayılan gri daire oluştur
+                # Otherwise create default gray circle
                 avatar_pixmap = QtGui.QPixmap(50, 50)
                 avatar_pixmap.fill(QtCore.Qt.transparent)
 
@@ -223,7 +223,7 @@ class MessageWidget(QtWidgets.QWidget):
 
         avatar_label.setPixmap(avatar_pixmap)
 
-        # Kendi mesajlarımız için avatar sağda, diğerleri için solda
+        # Avatar on the right for our messages, on the left for others
         if is_self:
             container_layout.addLayout(self._createMessageLayout(username, timestamp, message, True))
             container_layout.addWidget(avatar_label)
@@ -232,36 +232,36 @@ class MessageWidget(QtWidgets.QWidget):
             container_layout.addLayout(self._createMessageLayout(username, timestamp, message, False))
 
         if not is_self:
-            container_layout.addStretch(1)  # Boş alan ekleyerek sola yasla
+            container_layout.addStretch(1)  # Add empty space to align left
 
-        # Konteyneri ana düzene ekle ve tam genişliği kaplamasını sağla
-        main_layout.addWidget(container, 1)  # 1 = stretch faktörü
+        # Add container to main layout and make it cover the full width
+        main_layout.addWidget(container, 1)  # 1 = stretch factor
 
     def _createMessageLayout(self, username, timestamp, message, is_self):
-        """Mesaj içeriği düzenini oluşturur"""
+        """Creates message content layout"""
         message_layout = QtWidgets.QVBoxLayout()
         message_layout.setSpacing(4)
 
-        # Başlık (Kullanıcı adı ve zaman damgası) düzeni
+        # Title (Username and timestamp) layout
         header_layout = QtWidgets.QHBoxLayout()
 
-        # Kendi mesajlarımız için sağa, diğerleri için sola yasla
+        # Align right for our messages, left for others
         if is_self:
             header_layout.addStretch(1)
 
-        # Kullanıcı adı (baloncuk olmadan)
+        # Username (without bubble)
         username_label = QtWidgets.QLabel(username.upper())
         username_label.setStyleSheet("font-weight: bold; color: white;")
         header_layout.addWidget(username_label)
 
-        # Sadece saat bilgisini al (timestamp: "YYYY-MM-DD HH:MM:SS" formatında)
+        # Only get the time information (timestamp: "YYYY-MM-DD HH:MM:SS" format)
         try:
             dt_obj = datetime.datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
             time_str = dt_obj.strftime("%H:%M")
         except:
             time_str = timestamp.split(" ")[-1] if " " in timestamp else timestamp
 
-        # Saat bilgisi için baloncuk
+        # Bubble for time info
         time_bubble = QtWidgets.QWidget()
         time_bubble.setStyleSheet("""
             background-color: #444444;
@@ -282,20 +282,20 @@ class MessageWidget(QtWidgets.QWidget):
 
         message_layout.addLayout(header_layout)
 
-        # Mesaj içeriğini kontrol et - normal mesaj mı, script mesajı mı yoksa expression mesajı mı?
+        # Check message content - normal message, script message, or expression message?
         if "[SCRIPT_DATA]" in message and "[/SCRIPT_DATA]" in message:
-            # Script mesajını işle
+            # Process script message
             self._processScriptMessage(message_layout, message, is_self)
         elif "[EXPRESSION_DATA]" in message and "[/EXPRESSION_DATA]" in message:
-            # Expression mesajını işle
+            # Process expression message
             self._processExpressionMessage(message_layout, message, is_self)
         else:
-            # Normal metin mesajı
+            # Normal text message
             message_label = QtWidgets.QLabel(message)
             message_label.setWordWrap(True)
             message_label.setStyleSheet("color: white;")
 
-            # Kendi mesajlarımız için sağa, diğerleri için sola yasla
+            # Align right for our messages, left for others
             if is_self:
                 message_label.setAlignment(QtCore.Qt.AlignRight)
             else:
@@ -306,9 +306,9 @@ class MessageWidget(QtWidgets.QWidget):
         return message_layout
 
     def _processScriptMessage(self, message_layout, message, is_self):
-        """Script mesajını işler ve görüntüler"""
+        """Processes and displays script message"""
         try:
-            # Script verilerini çıkar ve çöz
+            # Extract and decode script data
             start_tag = "[SCRIPT_DATA]"
             end_tag = "[/SCRIPT_DATA]"
             start_idx = message.find(start_tag) + len(start_tag)
@@ -319,17 +319,17 @@ class MessageWidget(QtWidgets.QWidget):
                 script_data = decodeScriptData(encoded_data)
 
                 if script_data:
-                    # Script baloncuğu widget'ını oluştur
+                    # Create script bubble widget
                     script_bubble = ScriptBubbleWidget(script_data, self)
 
-                    # Kendi mesajlarımız için sağa, diğerleri için sola yasla
+                    # Align right for our messages, left for others
                     if is_self:
                         message_layout.addWidget(script_bubble, 0, QtCore.Qt.AlignRight)
                     else:
                         message_layout.addWidget(script_bubble, 0, QtCore.Qt.AlignLeft)
                 else:
-                    # Çözme hatası durumunda normal mesaj olarak göster
-                    error_label = QtWidgets.QLabel("Script verisi çözülemedi!")
+                    # Show as normal message if decoding fails
+                    error_label = QtWidgets.QLabel("Could not decode script data!")
                     error_label.setStyleSheet("color: #FF6666;")
 
                     if is_self:
@@ -340,8 +340,8 @@ class MessageWidget(QtWidgets.QWidget):
                     message_layout.addWidget(error_label)
 
         except Exception as e:
-            # Hata durumunda normal mesaj olarak göster
-            error_text = f"Script gösterme hatası: {str(e)}"
+            # Show as normal message if error occurs
+            error_text = f"Script display error: {str(e)}"
             error_label = QtWidgets.QLabel(error_text)
             error_label.setStyleSheet("color: #FF6666;")
 
@@ -353,9 +353,9 @@ class MessageWidget(QtWidgets.QWidget):
             message_layout.addWidget(error_label)
 
     def _processExpressionMessage(self, message_layout, message, is_self):
-        """Expression mesajını işler ve görüntüler"""
+        """Processes and displays expression message"""
         try:
-            # Expression verilerini çıkar ve çöz
+            # Extract and decode expression data
             start_tag = "[EXPRESSION_DATA]"
             end_tag = "[/EXPRESSION_DATA]"
             start_idx = message.find(start_tag) + len(start_tag)
@@ -366,18 +366,18 @@ class MessageWidget(QtWidgets.QWidget):
                 expression_data = decodeExpressionData(encoded_data)
 
                 if expression_data:
-                    # Expression baloncuğu widget'ını oluştur
+                    # Create expression bubble widget
                     from ExpressionHandler import ExpressionBubbleWidget
                     expression_bubble = ExpressionBubbleWidget(expression_data, self)
 
-                    # Kendi mesajlarımız için sağa, diğerleri için sola yasla
+                    # Align right for our messages, left for others
                     if is_self:
                         message_layout.addWidget(expression_bubble, 0, QtCore.Qt.AlignRight)
                     else:
                         message_layout.addWidget(expression_bubble, 0, QtCore.Qt.AlignLeft)
                 else:
-                    # Çözme hatası durumunda normal mesaj olarak göster
-                    error_label = QtWidgets.QLabel("Expression verisi çözülemedi!")
+                    # Show as normal message if decoding fails
+                    error_label = QtWidgets.QLabel("Could not decode expression data!")
                     error_label.setStyleSheet("color: #FF6666;")
 
                     if is_self:
@@ -388,8 +388,8 @@ class MessageWidget(QtWidgets.QWidget):
                     message_layout.addWidget(error_label)
 
         except Exception as e:
-            # Hata durumunda normal mesaj olarak göster
-            error_text = f"Expression gösterme hatası: {str(e)}"
+            # Show as normal message if error occurs
+            error_text = f"Expression display error: {str(e)}"
             error_label = QtWidgets.QLabel(error_text)
             error_label.setStyleSheet("color: #FF6666;")
 
@@ -404,69 +404,69 @@ class NukeChat(QtWidgets.QWidget):
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
 
-        # JSON dosyalarını mevcut Python dosyasıyla aynı dizinde "db" klasörüne kaydet
+        # Save JSON files to "db" folder in the same directory as current Python file
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        self.network_folder = os.path.join(script_dir, "db")  # Python dosyası ile aynı dizindeki "db" klasörü
+        self.network_folder = os.path.join(script_dir, "db")  # "db" folder in the same directory as Python file
 
-        # Avatar yönetimi için nesne oluştur (network_folder tanımlandıktan sonra)
+        # Create object for avatar management (after network_folder is defined)
         self.avatar_manager = AvatarManager(self.network_folder)
 
         self.onlineUsersTimer = QtCore.QTimer()
         self.onlineUsersTimer.timeout.connect(self.updateOnlineUsers)
 
 
-        # Eğer "db" klasörü yoksa oluştur
+        # Create "db" folder if it doesn't exist
         if not os.path.exists(self.network_folder):
             try:
                 os.makedirs(self.network_folder)
-                print(f"\"db\" klasörü oluşturuldu: {self.network_folder}")
+                print(f"\"db\" folder created: {self.network_folder}")
             except Exception as e:
-                print(f"Klasör oluşturma hatası: {str(e)}")
-                # Hata durumunda alternatif konum
+                print(f"Folder creation error: {str(e)}")
+                # Alternative location in case of error
                 self.network_folder = os.path.dirname(os.path.abspath(__file__))
-                print(f"Alternatif konum kullanılıyor: {self.network_folder}")
+                print(f"Using alternative location: {self.network_folder}")
 
-        # Mesaj verileri için dosya yolu
+        # Path for message data
         self.chat_file = os.path.join(self.network_folder, "nukechat_messages.json")
-        # Kullanıcı ayarları için dosya yolu
+        # Path for user settings
         self.settings_file = os.path.join(self.network_folder, "nukechat_settings.json")
         self.notifications_file = os.path.join(self.network_folder, "notifications.json")
-        # Presence dosyası yolu
+        # Path for presence file
         self.presence_file = os.path.join(self.network_folder, "presence.json")
 
         self.config_file = None
-        # Dosya konumunu ekrana yazdır
-        print("NukeChat JSON dosyası şuraya kaydedilecek:", self.chat_file)
+        # Print file location to screen
+        print("NukeChat JSON file will be saved to:", self.chat_file)
 
-        # Son güncelleme zamanını takip etmek için
+        # To track last update time
         self.last_update_time = 0
 
-        # Benzersiz kullanıcı ID (makine adı + rastgele ID)
+        # Unique user ID (machine name + random ID)
         self.user_id = f"{socket.gethostname()}_{random.randint(1000, 9999)}"
 
-        # Kullanıcı adı ayarı
+        # Username setting
         self.custom_username = ""
         self.loadSettings()
 
-        # Ana düzen
+        # Main layout
         self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().setContentsMargins(0, 0, 0, 0)
         self.layout().setSpacing(0)
 
-        # Arama ve filtreleme alanı
+        # Search and filter area
         search_container = QtWidgets.QWidget()
         search_container.setStyleSheet("background-color: #333333;")
         search_layout = QtWidgets.QHBoxLayout(search_container)
         search_layout.setContentsMargins(10, 5, 10, 5)
 
-        # Arama etiketi
-        search_label = QtWidgets.QLabel("Ara:")
+        # Search label
+        search_label = QtWidgets.QLabel("Search:")
         search_label.setStyleSheet("color: white;")
         search_layout.addWidget(search_label)
 
-        # Arama giriş kutusu
+        # Search input box
         self.searchInput = QtWidgets.QLineEdit()
-        self.searchInput.setPlaceholderText("Mesajlarda ara...")
+        self.searchInput.setPlaceholderText("Search messages...")
         self.searchInput.setStyleSheet("""
             QLineEdit {
                 background-color: #444444;
@@ -478,9 +478,9 @@ class NukeChat(QtWidgets.QWidget):
         """)
         search_layout.addWidget(self.searchInput)
 
-        # Filtreleme açılır kutusu
+        # Filter dropdown
         self.filterCombo = QtWidgets.QComboBox()
-        self.filterCombo.addItems(["Tüm Mesajlar", "Kendi Mesajlarım", "Diğer Mesajlar"])
+        self.filterCombo.addItems(["All Messages", "My Messages", "Other Messages"])
         self.filterCombo.setStyleSheet("""
             QComboBox {
                 background-color: #444444;
@@ -509,8 +509,8 @@ class NukeChat(QtWidgets.QWidget):
         """)
         search_layout.addWidget(self.filterCombo)
 
-        # Arama ve filtreleme butonları
-        self.searchButton = QtWidgets.QPushButton("Ara")
+        # Search and filter buttons
+        self.searchButton = QtWidgets.QPushButton("Search")
         self.searchButton.setStyleSheet("""
             QPushButton {
                 background-color: #555555;
@@ -528,7 +528,7 @@ class NukeChat(QtWidgets.QWidget):
         """)
         search_layout.addWidget(self.searchButton)
 
-        self.clearButton = QtWidgets.QPushButton("Temizle")
+        self.clearButton = QtWidgets.QPushButton("Clear")
         self.clearButton.setStyleSheet("""
             QPushButton {
                 background-color: #555555;
@@ -548,7 +548,7 @@ class NukeChat(QtWidgets.QWidget):
 
         self.layout().addWidget(search_container)
 
-        # Tab widget oluştur
+        # Create tab widget
         self.tabWidget = QtWidgets.QTabWidget()
         self.tabWidget.setStyleSheet("""
             QTabWidget::pane {
@@ -571,14 +571,14 @@ class NukeChat(QtWidgets.QWidget):
             }
         """)
 
-        # Mesajlar tab
+        # Messages tab
         self.messagesTab = QtWidgets.QWidget()
         self.messagesTabLayout = QtWidgets.QVBoxLayout(self.messagesTab)
         self.messagesTabLayout.setContentsMargins(0, 0, 0, 0)
         self.messagesTabLayout.setSpacing(0)
         self.tabWidget.currentChanged.connect(self.tabChanged)
-        self.statusLabel = QtWidgets.QLabel("Hazır")
-        # Mesajların görüntüleneceği alan - arka planı orijinale çevir
+        self.statusLabel = QtWidgets.QLabel("Ready")
+        # Area where messages will be displayed - change background to original
         self.scrollArea = QtWidgets.QScrollArea()
         self.scrollArea.setWidgetResizable(True)
         self.scrollArea.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -603,31 +603,31 @@ class NukeChat(QtWidgets.QWidget):
         """)
 
         self.messagesContainer = QtWidgets.QWidget()
-        # Mesajların container'ının arka planını daha koyu gri yap
+        # Make the messages container background darker gray
         self.messagesContainer.setStyleSheet("background-color: #282828;")
         self.messagesLayout = QtWidgets.QVBoxLayout(self.messagesContainer)
         self.messagesLayout.setContentsMargins(0, 0, 0, 0)
         self.messagesLayout.setSpacing(0)
-        # Mesajları alttan yukarı doğru göstermek için stretch ekleyelim
+        # Add stretch to show messages from bottom to top
         self.messagesLayout.addStretch(1)
 
         self.scrollArea.setWidget(self.messagesContainer)
         self.messagesTabLayout.addWidget(self.scrollArea)
 
-        # Ayarlar tab
+        # Settings tab
         self.settingsTab = QtWidgets.QWidget()
         self.settingsTabLayout = QtWidgets.QVBoxLayout(self.settingsTab)
         self.settingsTabLayout.setContentsMargins(20, 20, 20, 20)
         self.settingsTabLayout.setSpacing(10)
 
-        # Kullanıcı adı ayarı
+        # Username setting
         username_layout = QtWidgets.QHBoxLayout()
-        username_label = QtWidgets.QLabel("Kullanıcı Adı:")
+        username_label = QtWidgets.QLabel("Username:")
         username_label.setStyleSheet("color: white;")
         username_layout.addWidget(username_label)
 
         self.usernameInput = QtWidgets.QLineEdit()
-        self.usernameInput.setPlaceholderText("Özel kullanıcı adı (boş bırakılırsa bilgisayar adı kullanılır)")
+        self.usernameInput.setPlaceholderText("Custom username (computer name will be used if left empty)")
         self.usernameInput.setStyleSheet("""
             QLineEdit {
                 background-color: #444444;
@@ -640,8 +640,8 @@ class NukeChat(QtWidgets.QWidget):
         self.usernameInput.setText(self.custom_username)
         username_layout.addWidget(self.usernameInput)
 
-        # Kaydet butonu
-        self.saveSettingsButton = QtWidgets.QPushButton("Kaydet")
+        # Save button
+        self.saveSettingsButton = QtWidgets.QPushButton("Save")
         self.saveSettingsButton.setStyleSheet("""
             QPushButton {
                 background-color: #555555;
@@ -660,13 +660,13 @@ class NukeChat(QtWidgets.QWidget):
         username_layout.addWidget(self.saveSettingsButton)
 
         self.settingsTabLayout.addLayout(username_layout)
-        # Avatar değiştirme butonu
+        # Avatar change button
         avatar_settings_layout = QtWidgets.QHBoxLayout()
         avatar_label = QtWidgets.QLabel("Avatar:")
         avatar_label.setStyleSheet("color: white;")
         avatar_settings_layout.addWidget(avatar_label)
 
-        # Avatar önizleme
+        # Avatar preview
         self.avatar_preview = QtWidgets.QLabel()
         self.avatar_preview.setFixedSize(70, 70)
         self.avatar_preview.setStyleSheet("""
@@ -676,8 +676,8 @@ class NukeChat(QtWidgets.QWidget):
         """)
         avatar_settings_layout.addWidget(self.avatar_preview)
 
-        # Avatar değiştirme butonu
-        self.changeAvatarButton = QtWidgets.QPushButton("Avatar Değiştir")
+        # Avatar change button
+        self.changeAvatarButton = QtWidgets.QPushButton("Change Avatar")
         self.changeAvatarButton.setStyleSheet("""
             QPushButton {
                 background-color: #555555;
@@ -699,24 +699,24 @@ class NukeChat(QtWidgets.QWidget):
 
         self.settingsTabLayout.addLayout(avatar_settings_layout)
 
-        # Mevcut avatarı yükle
+        # Load current avatar
         self.updateAvatarPreview()
 
-        self.settingsTabLayout.addStretch(1)  # Boşluğu alt kısımda bırakmak için
+        self.settingsTabLayout.addStretch(1)  # Leave space at the bottom
 
-        # Tab'ları ekle
-        self.tabWidget.addTab(self.messagesTab, "Mesajlar")
-        self.tabWidget.addTab(self.settingsTab, "Ayarlar")
+        # Add tabs
+        self.tabWidget.addTab(self.messagesTab, "Messages")
+        self.tabWidget.addTab(self.settingsTab, "Settings")
 
-        self.layout().addWidget(self.tabWidget, 1)  # 1 = stretch faktörü
+        self.layout().addWidget(self.tabWidget, 1)  # 1 = stretch factor
 
-        # Giriş alanı arka planı
+        # Input area background
         input_container = QtWidgets.QWidget()
         input_container.setStyleSheet("background-color: #333333;")
         input_layout = QtWidgets.QHBoxLayout(input_container)
         input_layout.setContentsMargins(10, 10, 10, 10)
 
-        # Mesaj giriş container'ı
+        # Message input container
         message_input_container = QtWidgets.QWidget()
         message_input_container.setStyleSheet("""
             QWidget {
@@ -728,9 +728,9 @@ class NukeChat(QtWidgets.QWidget):
         message_input_layout.setContentsMargins(8, 8, 8, 8)
         message_input_layout.setSpacing(5)
 
-        # Mesaj yazma alanı - QTextEdit olarak (genişletilebilir)
+        # Message writing area - as QTextEdit (expandable)
         self.messageInput = QtWidgets.QTextEdit()
-        self.messageInput.setPlaceholderText("Mesajınızı yazın...")
+        self.messageInput.setPlaceholderText("Type your message...")
         self.messageInput.setStyleSheet("""
             QTextEdit {
                 background-color: transparent;
@@ -739,37 +739,37 @@ class NukeChat(QtWidgets.QWidget):
                 padding: 0px;
                 min-height: 40px;
                 max-height: 100px;
-                font-size: 14px;  /* Font boyutunu burada ayarlayabilirsiniz */
+                font-size: 14px;  /* You can adjust font size here */
             }
         """)
         self.messageInput.setMinimumHeight(40)
         self.messageInput.setMaximumHeight(100)
 
-        # Mesaj/durum bildirim alanı
+        # Message/status notification area
         self.notificationLayout = QtWidgets.QHBoxLayout()
-        # self.statusLabel = QtWidgets.QLabel("Hazır")
+        # self.statusLabel = QtWidgets.QLabel("Ready")
         self.statusLabel.setStyleSheet("color: rgba(170, 170, 170, 0.7); font-size: 10px;")
         self.notificationLayout.addWidget(self.statusLabel)
 
-        # Gönder butonu SVG ikonu
+        # Send button SVG icon
         script_dir = os.path.dirname(os.path.abspath(__file__))
         send_svg_path = os.path.join(script_dir, "db", "send.svg")
 
-        # Gönder butonu ayarları
+        # Send button settings
         self.sendButton = QtWidgets.QPushButton()
         self.sendButton.setFixedSize(24, 24)
         self.sendButton.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                border: none;
-                color: white;
-                font-weight: bold;
-                padding: 0px;
-            }
-            QPushButton:hover {
-                color: #aaaaaa;
-            }
-        """)
+                    QPushButton {
+                        background-color: transparent;
+                        border: none;
+                        color: white;
+                        font-weight: bold;
+                        padding: 0px;
+                    }
+                    QPushButton:hover {
+                        color: #aaaaaa;
+                    }
+                """)
 
         if os.path.exists(send_svg_path):
             self.sendButton.setIcon(QIcon(send_svg_path))
@@ -779,94 +779,93 @@ class NukeChat(QtWidgets.QWidget):
 
         self.notificationLayout.addWidget(self.sendButton)
 
-        # Yukarıdan aşağı düzen: mesaj yazma alanı, durum etiketi
+        # Top-down layout: message writing area, status label
         message_input_layout.addWidget(self.messageInput)
         message_input_layout.addLayout(self.notificationLayout)
 
-        # Mesaj girişini ana düzene ekle
+        # Add message input to main layout
         input_layout.addWidget(message_input_container)
 
         self.layout().addWidget(input_container)
 
-        # Pencere boyutlandırma politikası ayarları
+        # Window resizing policy settings
         self.setSizePolicy(QtWidgets.QSizePolicy(
             QtWidgets.QSizePolicy.Expanding,
             QtWidgets.QSizePolicy.Expanding
         ))
 
-        # Gönder butonu bağlantısı
+        # Send button connection
         self.sendButton.clicked.connect(self.sendMessage)
 
-        # Kullanıcı adı kaydet butonu bağlantısı
+        # Username save button connection
         self.saveSettingsButton.clicked.connect(self.saveSettings)
 
-        # Arama ve filtreleme bağlantıları
+        # Search and filter connections
         self.searchButton.clicked.connect(self.searchMessages)
         self.clearButton.clicked.connect(self.clearSearch)
         self.searchInput.returnPressed.connect(self.searchMessages)
         self.filterCombo.currentIndexChanged.connect(self.filterMessages)
 
-        # Enter tuşu ile gönderme - QTextEdit için özel tuş işleyicisi gerekiyor
+        # Enter key to send - special key handler needed for QTextEdit
         self.messageInput.installEventFilter(self)
 
-        # Timer kurulumu - mesajları düzenli olarak günceller
+        # Timer setup - regularly updates messages
         self.updateTimer = QtCore.QTimer()
         self.updateTimer.timeout.connect(self.checkForUpdates)
-        self.updateTimer.start(1000)  # 1 saniyede bir güncelle
+        self.updateTimer.start(1000)  # Update every 1 second
         self.notificationTimer = QtCore.QTimer()
         self.notificationTimer.timeout.connect(self.checkNotifications)
-        self.notificationTimer.start(3000)  # 3 saniyede bir bildirimleri kontrol et
-        # İkinci timer - presence güncellemesi için
+        self.notificationTimer.start(3000)  # Check notifications every 3 seconds
+        # Second timer - for presence updates
         self.presenceTimer = QtCore.QTimer()
         self.presenceTimer.timeout.connect(self.updatePresence)
-        self.presenceTimer.start(5000)  # 5 saniyede bir varlığımızı bildir
+        self.presenceTimer.start(5000)  # Report our presence every 5 seconds
 
-
-        # Başlangıçta varlığımızı bildir
+        # Report our presence at startup
         self.updatePresence()
 
-        # Başlangıçta mevcut mesajları yükle
+        # Load existing messages at startup
         self.loadMessages()
 
-        # Genel stil
+        # General style
         self.setStyleSheet("""
-            QWidget {
-                font-family: 'Segoe UI', 'Arial', sans-serif;
-            }
-        """)
+                    QWidget {
+                        font-family: 'Segoe UI', 'Arial', sans-serif;
+                    }
+                """)
 
-        # Arama ve filtreleme değişkenleri
+        # Search and filter variables
         self.current_search = ""
-        self.current_filter = 0  # 0: Tüm, 1: Kendi, 2: Diğerleri
+        self.current_filter = 0  # 0: All, 1: Mine, 2: Others
 
         self.clipboard_handler = ClipboardHandler(self)
-        # Yapıştır düğmesi ekle (mesaj giriş alanının yanına)
+        # Add paste button (next to message input area)
         self.pasteScriptButton = QtWidgets.QPushButton()
         self.pasteScriptButton.setFixedSize(30, 30)
-        self.pasteScriptButton.setToolTip("Nuke Scriptini Yapıştır")
+        self.pasteScriptButton.setToolTip("Paste Nuke Script")
         self.pasteScriptButton.setStyleSheet("""
-                QPushButton {
-                    background-color: transparent;
-                    border: none;
-                    color: #AAAAAA;
-                    font-weight: bold;
-                    font-size: 16px;
-                }
-                QPushButton:hover {
-                    color: #FFFFFF;
-                }
-                QPushButton:disabled {
-                    color: #555555;
-                }
-            """)
+                        QPushButton {
+                            background-color: transparent;
+                            border: none;
+                            color: #AAAAAA;
+                            font-weight: bold;
+                            font-size: 16px;
+                        }
+                        QPushButton:hover {
+                            color: #FFFFFF;
+                        }
+                        QPushButton:disabled {
+                            color: #555555;
+                        }
+                    """)
 
         self.pasteScriptButton.setText("")  # Remove text, just show the icon
         self.notificationLayout.insertWidget(self.notificationLayout.count() - 1, self.pasteScriptButton)
 
-        # Düzenli aralıklarla pano kontrolü için zamanlayıcı
+        # Timer for regular clipboard checking
         self.clipboardCheckTimer = QtCore.QTimer(self)
         self.clipboardCheckTimer.timeout.connect(self.checkClipboardForScript)
-        self.clipboardCheckTimer.start(1000)  # Her saniye kontrol et
+        self.clipboardCheckTimer.start(1000)  # Check every second
 
         self.sendButton.clicked.connect(self.handleSendAction)
 
@@ -874,182 +873,182 @@ class NukeChat(QtWidgets.QWidget):
         self.onlineUsersTimer.start(5000)
 
     def showAvatarDialog(self):
-        """Avatar yükleme iletişim kutusunu gösterir"""
+        """Shows avatar upload dialog"""
         hostname = socket.gethostname()
         dialog = AvatarUploadDialog(self.avatar_manager, hostname, self.getCurrentUser(), self)
         if dialog.exec_() == QtWidgets.QDialog.Accepted:
-            # Avatar güncellenmiş olabilir, yeniden yükle
+            # Avatar may have been updated, reload
             self.updateAvatarPreview()
 
     def updateAvatarPreview(self):
-        """Ayarlar sayfasındaki avatar önizlemesini günceller"""
+        """Updates avatar preview on settings page"""
         hostname = socket.gethostname()
         pixmap = self.avatar_manager.load_avatar(hostname, 70)
         self.avatar_preview.setPixmap(pixmap)
 
     def checkClipboardForScript(self):
-        """Panoda Nuke script olup olmadığını kontrol eder"""
-        # Pano içeriğini kontrol et ve sonucu bir sınıf değişkeninde sakla
+        """Checks if clipboard contains a Nuke script"""
+        # Check clipboard content and store result in a class variable
         self.has_script_in_clipboard = self.clipboard_handler.checkClipboard()
 
-        # Eğer panoda Nuke script varsa
+        # If there's a Nuke script in the clipboard
         if self.has_script_in_clipboard:
             self.statusLabel.setStyleSheet("color: #FF9900; font-weight: bold; font-size: 12px;")
-            self.statusLabel.setText("Enter'a basarak Nuke scriptini paylaşabilirsiniz")
+            self.statusLabel.setText("Press Enter to share the Nuke script")
         else:
             current_status = self.statusLabel.text()
             if "Nuke script" in current_status:
                 self.statusLabel.setStyleSheet("color: rgba(255, 153, 0, 0.8); font-weight: bold; font-size: 12px;")
-                self.statusLabel.setText("Hazır")
+                self.statusLabel.setText("Ready")
 
     def handleSendAction(self):
-        """Gönder düğmesine basıldığında veya Enter tuşuna basıldığında çağrılır"""
-        # Mesaj alanından metni alın
+        """Called when send button is clicked or Enter key is pressed"""
+        # Get text from message area
         message = self.messageInput.toPlainText().strip()
 
-        # Pano içeriğinde Nuke script varsa ve metin alanı boşsa
+        # If clipboard contains Nuke script and text area is empty
         if not message and self.has_script_in_clipboard:
-            # Script'i gönder
+            # Send script
             self.pasteNukeScript()
         else:
-            # Normal mesajı gönder
+            # Send normal message
             self.sendMessage()
 
     def pasteNukeScript(self):
-        """Panodan Nuke scriptini alır ve sohbette paylaşır"""
-        # Panodan script verilerini al
+        """Gets Nuke script from clipboard and shares in chat"""
+        # Get script data from clipboard
         script_data = self.clipboard_handler.getScriptFromClipboard()
 
         if script_data:
-            # Açıklama eklemek için dialog oluştur
+            # Create dialog for adding description
             description_dialog = QtWidgets.QDialog(self)
-            description_dialog.setWindowTitle("Script Açıklaması")
+            description_dialog.setWindowTitle("Script Description")
             description_dialog.setMinimumWidth(400)
             description_dialog.setStyleSheet("""
-                QDialog {
-                    background-color: #333333;
-                    color: white;
-                }
-                QLabel {
-                    color: white;
-                }
-                QLineEdit {
-                    background-color: #444444;
-                    color: white;
-                    border: 1px solid #555555;
-                    border-radius: 4px;
-                    padding: 5px;
-                }
-                QPushButton {
-                    background-color: #555555;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    padding: 6px 12px;
-                }
-                QPushButton:hover {
-                    background-color: #666666;
-                }
-            """)
+                        QDialog {
+                            background-color: #333333;
+                            color: white;
+                        }
+                        QLabel {
+                            color: white;
+                        }
+                        QLineEdit {
+                            background-color: #444444;
+                            color: white;
+                            border: 1px solid #555555;
+                            border-radius: 4px;
+                            padding: 5px;
+                        }
+                        QPushButton {
+                            background-color: #555555;
+                            color: white;
+                            border: none;
+                            border-radius: 4px;
+                            padding: 6px 12px;
+                        }
+                        QPushButton:hover {
+                            background-color: #666666;
+                        }
+                    """)
 
             dialog_layout = QtWidgets.QVBoxLayout(description_dialog)
 
-            # Açıklama etiketi
-            desc_label = QtWidgets.QLabel("Script parçası için açıklama girin:")
+            # Description label
+            desc_label = QtWidgets.QLabel("Enter a description for the script fragment:")
             dialog_layout.addWidget(desc_label)
 
-            # Açıklama girişi
+            # Description input
             desc_input = QtWidgets.QLineEdit()
-            desc_input.setPlaceholderText("Örn: Blur Effect, Transform Nodları, vb.")
+            desc_input.setPlaceholderText("E.g.: Blur Effect, Transform Nodes, etc.")
             dialog_layout.addWidget(desc_input)
 
-            # Buton düzeni
+            # Button layout
             button_layout = QtWidgets.QHBoxLayout()
-            cancel_button = QtWidgets.QPushButton("İptal")
-            send_button = QtWidgets.QPushButton("Gönder")
+            cancel_button = QtWidgets.QPushButton("Cancel")
+            send_button = QtWidgets.QPushButton("Send")
             send_button.setDefault(True)
 
             button_layout.addWidget(cancel_button)
             button_layout.addWidget(send_button)
             dialog_layout.addLayout(button_layout)
 
-            # Buton bağlantıları
+            # Button connections
             cancel_button.clicked.connect(description_dialog.reject)
             send_button.clicked.connect(description_dialog.accept)
 
-            # Dialog'u göster
+            # Show dialog
             result = description_dialog.exec_()
 
             if result == QtWidgets.QDialog.Accepted:
-                # Açıklama ekle
+                # Add description
                 script_data["description"] = desc_input.text()
-                # Script mesajını gönder
+                # Send script message
                 self.sendScriptMessage(script_data)
 
         else:
-            self.updateStatus("Panoda geçerli bir Nuke script verisi bulunamadı")
+            self.updateStatus("No valid Nuke script data found in clipboard")
 
     def sendScriptMessage(self, script_data):
-        """Script verisini mesaj olarak gönderir"""
+        """Sends script data as a message"""
         try:
-            # Script verisini kodla
+            # Encode script data
             encoded_data = encodeScriptData(script_data)
 
             if encoded_data:
-                # Özel formatla script mesajı gönder
+                # Send script message with special format
                 script_message = f"[SCRIPT_DATA]{encoded_data}[/SCRIPT_DATA]"
 
-                # Mesajı kaydet ve gönder (normal mesaj gönderme fonksiyonunu kullan)
+                # Save and send message (use normal message sending function)
                 if self.saveMessage(script_message):
-                    # Mesajları güncelleyerek göster
+                    # Update and display messages
                     self.loadMessages()
 
-                    # Durum çubuğunu güncelle
+                    # Update status bar
                     description = script_data.get("description", "")
                     if description:
-                        status_text = f"\"{description}\" script parçası paylaşıldı"
+                        status_text = f"Script fragment \"{description}\" shared"
                     else:
-                        status_text = "Script parçası paylaşıldı"
+                        status_text = "Script fragment shared"
 
                     self.updateStatus(status_text)
 
-                    # Mesaj kutusunu temizle (bu zaten boş olmalı ama yine de temizleyelim)
+                    # Clear message box (should already be empty, but clear anyway)
                     self.messageInput.clear()
 
         except Exception as e:
-            self.updateStatus(f"Script mesajı gönderme hatası: {str(e)}")
+            self.updateStatus(f"Error sending script message: {str(e)}")
 
     def updateOnlineUsers(self):
-        """Online kullanıcı listesini günceller"""
-        # Önce mevcut online kullanıcılar widgetını temizle
-        while self.settingsTabLayout.count() > 2:  # İlk iki widget korunacak
+        """Updates online user list"""
+        # First clear current online users widget
+        while self.settingsTabLayout.count() > 2:  # Keep first two widgets
             item = self.settingsTabLayout.takeAt(2)
             if item.widget():
                 item.widget().deleteLater()
 
-        # Tekrar online kullanıcıları yükle
+        # Reload online users
         self.loadOnlineUsers()
 
     def loadOnlineUsers(self):
-        """Online kullanıcıları yükler ve görüntüler"""
+        """Loads and displays online users"""
         try:
-            # Online kullanıcılar için alan
+            # Area for online users
             online_users_container = QtWidgets.QWidget()
             online_users_layout = QtWidgets.QVBoxLayout(online_users_container)
             online_users_layout.setContentsMargins(0, 0, 0, 0)
             online_users_layout.setSpacing(10)
 
-            # Online kullanıcılar başlığı
-            online_title = QtWidgets.QLabel("Şu Anda Online")
+            # Online users title
+            online_title = QtWidgets.QLabel("Currently Online")
             online_title.setStyleSheet("""
-                font-size: 16px;
-                font-weight: bold;
-                color: white;
-                margin-bottom: 10px;
-            """)
+                        font-size: 16px;
+                        font-weight: bold;
+                        color: white;
+                        margin-bottom: 10px;
+                    """)
             online_users_layout.addWidget(online_title)
 
-            # Presence dosyasından online kullanıcıları oku
+            # Read online users from presence file
             online_users = []
             current_time = time.time()
             if os.path.exists(self.presence_file):
@@ -1057,189 +1056,189 @@ class NukeChat(QtWidgets.QWidget):
                     with open(self.presence_file, 'r', encoding='utf-8') as file:
                         presence_data = json.load(file)
 
-                        # Son 30 saniye içinde aktif olan kullanıcıları bul
+                        # Find users active in last 30 seconds
                         for uid, data in presence_data.items():
-                            if current_time - data["last_seen"] < 30:  # 30 saniye içinde aktif
+                            if current_time - data["last_seen"] < 30:  # Active within 30 seconds
                                 online_users.append(data["user"])
                 except Exception as e:
-                    print(f"Online kullanıcıları okuma hatası: {str(e)}")
+                    print(f"Error reading online users: {str(e)}")
 
             if online_users:
-                # Online kullanıcıları listele
+                # List online users
                 for user in online_users:
                     user_widget = QtWidgets.QWidget()
                     user_layout = QtWidgets.QHBoxLayout(user_widget)
                     user_layout.setContentsMargins(10, 5, 10, 5)
                     user_layout.setSpacing(10)
 
-                    # Online kullanıcı simgesi - HTML ile renkli daire
+                    # Online user icon - colored circle with HTML
                     online_icon = QtWidgets.QLabel("•")
                     online_icon.setStyleSheet("""
-                            color: #00CC00;
-                            font-size: 24px;
-                            font-weight: bold;
-                        """)
+                                    color: #00CC00;
+                                    font-size: 24px;
+                                    font-weight: bold;
+                                """)
                     user_layout.addWidget(online_icon)
 
-                    # Kullanıcı adı
+                    # Username
                     user_label = QtWidgets.QLabel(user)
                     user_label.setStyleSheet("""
-                        color: white;
-                        font-size: 14px;
-                    """)
+                                color: white;
+                                font-size: 14px;
+                            """)
                     user_layout.addWidget(user_label)
 
                     user_layout.addStretch(1)
                     online_users_layout.addWidget(user_widget)
             else:
-                # Kimse online değilse
-                no_users_label = QtWidgets.QLabel("Şu anda online kullanıcı yok")
+                # If no one is online
+                no_users_label = QtWidgets.QLabel("No users currently online")
                 no_users_label.setStyleSheet("""
-                    color: #888888;
-                    font-style: italic;
-                    padding: 10px;
-                """)
+                            color: #888888;
+                            font-style: italic;
+                            padding: 10px;
+                        """)
                 online_users_layout.addWidget(no_users_label)
 
             online_users_layout.addStretch(1)
 
-            # Var olan settingsTabLayout'a ekle
+            # Add to existing settingsTabLayout
             self.settingsTabLayout.addWidget(online_users_container)
 
         except Exception as e:
-            print(f"Online kullanıcıları yükleme hatası: {str(e)}")
+            print(f"Error loading online users: {str(e)}")
 
     def eventFilter(self, obj, event):
-        """QTextEdit ile Enter tuşu ile göndermeyi etkinleştirmek için event filter"""
+        """Event filter to enable sending with Enter key in QTextEdit"""
         if obj is self.messageInput and event.type() == QtCore.QEvent.KeyPress:
             if event.key() == QtCore.Qt.Key_Return and not event.modifiers() & QtCore.Qt.ShiftModifier:
                 self.handleSendAction()
                 return True
             if event.key() == QtCore.Qt.Key_Return and event.modifiers() & QtCore.Qt.ShiftModifier:
-                # Shift+Enter ile yeni satır
+                # Shift+Enter for new line
                 cursor = self.messageInput.textCursor()
                 cursor.insertText("\n")
                 return True
         return super(NukeChat, self).eventFilter(obj, event)
 
     def loadSettings(self):
-        """Ayarları yükle"""
+        """Load settings"""
         try:
-            # config.json dosyasının yolu
+            # Path for config.json file
             self.config_file = os.path.join(self.network_folder, "config.json")
 
-            # Eğer config.json dosyası varsa
+            # If config.json file exists
             if os.path.exists(self.config_file):
                 with open(self.config_file, 'r', encoding='utf-8') as file:
                     config = json.load(file)
 
-                    # Bilgisayar adı için kullanıcı adını al
+                    # Get username for computer name
                     hostname = socket.gethostname()
                     if hostname in config:
                         self.custom_username = config[hostname]
 
-            # Ayrıca eski settings.json dosyasını da kontrol et (geriye uyumluluk için)
+            # Also check old settings.json file (for backward compatibility)
             elif os.path.exists(self.settings_file):
                 with open(self.settings_file, 'r', encoding='utf-8') as file:
                     settings = json.load(file)
                     if 'username' in settings:
                         self.custom_username = settings['username']
 
-                        # Eski ayarları yeni formata dönüştür
+                        # Convert old settings to new format
                         self.saveSettings()
         except Exception as e:
-            print(f"Ayarlar yüklenirken hata: {str(e)}")
+            print(f"Error loading settings: {str(e)}")
 
     def saveSettings(self):
-        """Ayarları kaydet"""
+        """Save settings"""
         try:
-            # Girilen kullanıcı adını al
+            # Get entered username
             self.custom_username = self.usernameInput.text().strip()
 
-            # config.json dosyasını yükle veya yeni oluştur
+            # Load or create new config.json file
             config = {}
             if os.path.exists(self.config_file):
                 try:
                     with open(self.config_file, 'r', encoding='utf-8') as file:
                         config = json.load(file)
                 except:
-                    # Dosya bozuksa yeni oluştur
+                    # Create new if file is corrupted
                     config = {}
 
-            # Bilgisayar adına karşılık kullanıcı adını kaydet
+            # Save username for computer name
             hostname = socket.gethostname()
             config[hostname] = self.custom_username
 
-            # config.json'a kaydet
+            # Save to config.json
             with open(self.config_file, 'w', encoding='utf-8') as file:
                 json.dump(config, file, ensure_ascii=False, indent=4)
 
-            self.updateStatus("Kullanıcı adı kaydedildi")
+            self.updateStatus("Username saved")
             self.updateAvatarPreview()
         except Exception as e:
-            self.updateStatus(f"Ayarlar kaydedilemedi: {str(e)}")
+            self.updateStatus(f"Could not save settings: {str(e)}")
 
     def getCurrentUser(self):
-        """Kullanıcı adını döndürür (özel ad varsa onu, yoksa makine adını)"""
+        """Returns username (custom name if set, otherwise machine name)"""
         if self.custom_username:
             return f"{self.custom_username} - ({socket.gethostname()})"
         return socket.gethostname()
 
     def updateStatus(self, status):
-        """Durum etiketini günceller"""
+        """Updates status label"""
         self.statusLabel.setText(status)
 
-        # 3 saniye sonra "Hazır" mesajına geri dön (önemli mesajlar için)
-        QtCore.QTimer.singleShot(3000, lambda: self.statusLabel.setText("Hazır"))
+        # Return to "Ready" message after 3 seconds (for important messages)
+        QtCore.QTimer.singleShot(3000, lambda: self.statusLabel.setText("Ready"))
 
     def updatePresence(self):
-        """Varlık bilgisini günceller"""
+        """Updates presence information"""
         try:
-            # Mevcut varlık verilerini yükle
+            # Load current presence data
             presence_data = {}
             if os.path.exists(self.presence_file):
                 try:
                     with open(self.presence_file, 'r', encoding='utf-8') as file:
                         presence_data = json.load(file)
                 except:
-                    # Dosya kilitli veya bozuk olabilir, yeni dosya oluştur
+                    # File might be locked or corrupted, create new file
                     presence_data = {}
 
-            # Kendi varlığımızı ekle/güncelle
+            # Add/update our presence
             current_time = time.time()
             presence_data[self.user_id] = {
                 "user": self.getCurrentUser(),
                 "last_seen": current_time
             }
 
-            # Eski kayıtları temizle (son 30 saniyede aktif olmayanlar)
+            # Clean up old records (not active in last 30 seconds)
             active_users = {}
             for uid, data in presence_data.items():
-                if current_time - data["last_seen"] < 30:  # 30 saniyeden eski olanları sil
+                if current_time - data["last_seen"] < 30:  # Remove ones older than 30 seconds
                     active_users[uid] = data
 
-            # Dosyaya kaydet
+            # Save to file
             with open(self.presence_file, 'w', encoding='utf-8') as file:
                 json.dump(active_users, file, ensure_ascii=False)
 
         except Exception as e:
-            self.updateStatus(f"Presence Hatası: {str(e)}")
+            self.updateStatus(f"Presence Error: {str(e)}")
 
     def checkForUpdates(self):
-        """Yeni mesajlar için dosyayı kontrol eder"""
+        """Checks file for new messages"""
         try:
             if not os.path.exists(self.chat_file):
-                # Dosya yoksa boş JSON oluştur
+                # Create empty JSON if file doesn't exist
                 with open(self.chat_file, 'w', encoding='utf-8') as file:
                     json.dump([], file)
                 self.last_update_time = time.time()
                 return
 
-            # Dosya son değişiklik zamanını kontrol et
+            # Check file last modification time
             file_mod_time = os.path.getmtime(self.chat_file)
 
             if file_mod_time > self.last_update_time:
-                # Mevcut mesaj sayısını kaydet
+                # Save current message count
                 old_message_count = 0
                 if os.path.exists(self.chat_file):
                     try:
@@ -1248,10 +1247,10 @@ class NukeChat(QtWidgets.QWidget):
                     except:
                         old_message_count = 0
 
-                # Mesajları yükle
+                # Load messages
                 self.loadMessages()
 
-                # Yeni mesaj sayısını kontrol et
+                # Check new message count
                 new_message_count = 0
                 if os.path.exists(self.chat_file):
                     try:
@@ -1260,105 +1259,105 @@ class NukeChat(QtWidgets.QWidget):
                     except:
                         new_message_count = 0
 
-                # Yeni mesaj varsa bildirim göster
+                # Show notification if there are new messages
                 if new_message_count > old_message_count:
                     self.showNotification(new_message_count - old_message_count)
 
                 self.last_update_time = file_mod_time
-                self.updateStatus("Mesajlar Güncellendi")
+                self.updateStatus("Messages Updated")
         except Exception as e:
-            self.updateStatus(f"Güncelleme Hatası: {str(e)}")
+            self.updateStatus(f"Update Error: {str(e)}")
 
     def showNotification(self, count):
-        """Nuke içinde bildirim gösterir"""
+        """Shows notification in Nuke"""
         try:
-            # Tab başlığını güncelleyelim
-            self.tabWidget.setTabText(0, f"Mesajlar ({count} yeni)")
+            # Update tab title
+            self.tabWidget.setTabText(0, f"Messages ({count} new)")
 
-            # Bildirim alanını daha belirgin yapalım
+            # Make notification area more visible
             self.statusLabel.setStyleSheet("color: #FF9900; font-weight: bold; font-size: 12px;")
-            self.statusLabel.setText(f"{count} yeni mesaj var!")
+            self.statusLabel.setText(f"{count} new messages!")
 
-            # Nuke'un ana penceresinde bildirim göster (opsiyonel)
+            # Show notification in Nuke's main window (optional)
             import nuke
-            nuke.message(f"{count} yeni NukeChat mesajı var!")
+            nuke.message(f"{count} new NukeChat messages!")
 
-            # Bildirim zil sesi çal (opsiyonel)
-            # Burada bir ses dosyası çalabilirsiniz
+            # Play notification sound (optional)
+            # You can play a sound file here
 
-            # 5 saniye sonra bildirim stilini normal hale getir
+            # Return notification style to normal after 5 seconds
             QtCore.QTimer.singleShot(5000, lambda: self.resetNotification())
         except Exception as e:
-            print(f"Bildirim gösterme hatası: {str(e)}")
+            print(f"Error showing notification: {str(e)}")
 
     def resetNotification(self):
-        """Bildirim göstergesini sıfırlar"""
-        self.tabWidget.setTabText(0, "Mesajlar")
+        """Resets notification indicator"""
+        self.tabWidget.setTabText(0, "Messages")
         self.statusLabel.setStyleSheet("color: rgba(170, 170, 170, 1); font-size: 14px;")
-        self.statusLabel.setText("Hazır")
+        self.statusLabel.setText("Ready")
 
     def tabChanged(self, index):
-        """Tab değiştiğinde çağrılır"""
-        if index == 0:  # Mesajlar tabı seçildiğinde bildirimi sıfırla
+        """Called when tab is changed"""
+        if index == 0:  # Reset notification when Messages tab is selected
             self.resetNotification()
 
     def loadMessages(self):
-        """JSON dosyasından mesajları yükler ve görüntüler"""
+        """Loads messages from JSON file and displays them"""
         try:
             if os.path.exists(self.chat_file):
                 with open(self.chat_file, 'r', encoding='utf-8') as file:
                     messages = json.load(file)
 
-                # Arama ve filtreleme uygula
+                # Apply search and filter
                 filtered_messages = self.applySearchAndFilter(messages)
 
-                # Önce mevcut mesajları temizle (stretch hariç)
+                # First clear current messages (except stretch)
                 while self.messagesLayout.count() > 1:
                     item = self.messagesLayout.takeAt(0)
                     if item.widget():
                         item.widget().deleteLater()
 
-                # Kendi kullanıcı adımız
+                # Our own username
                 current_user = self.getCurrentUser()
 
-                # Yeni mesaj widget'larını ekle
+                # Add new message widgets
                 for idx, msg in enumerate(filtered_messages):
-                    # Kendimize ait mesaj mı kontrol et
+                    # Check if message belongs to us
                     is_self = msg['user'] == current_user
 
-                    # Mesaj widget'ı oluştur ve parent olarak self'i (NukeChat) geçir
+                    # Create message widget and pass self (NukeChat) as parent
                     message_widget = MessageWidget(
                         msg['user'],
                         msg['timestamp'],
                         msg['message'],
                         is_self=is_self,
-                        parent=self,  # Burada self (NukeChat) geçiyoruz
+                        parent=self,  # Passing self (NukeChat) here
                         row_index=idx
                     )
 
-                    # Mesajı en alta ekle (stretch'in üzerine)
+                    # Add message at bottom (above stretch)
                     self.messagesLayout.insertWidget(self.messagesLayout.count() - 1, message_widget)
 
-                # Scroll'u en alta hareket ettir
+                # Scroll to bottom
                 self.scrollToBottom()
 
-            self.updateStatus("Hazır")
+            self.updateStatus("Ready")
         except Exception as e:
-            self.updateStatus(f"Yükleme Hatası: {str(e)}")
+            self.updateStatus(f"Loading Error: {str(e)}")
 
     def applySearchAndFilter(self, messages):
-        """Arama ve filtreleme kriterlerini uygular"""
+        """Applies search and filter criteria"""
         filtered_messages = []
         current_user = self.getCurrentUser()
 
         for msg in messages:
-            # Filtrelemeyi uygula
-            if self.current_filter == 1 and msg['user'] != current_user:  # Sadece kendi mesajlarım
+            # Apply filter
+            if self.current_filter == 1 and msg['user'] != current_user:  # Only my messages
                 continue
-            if self.current_filter == 2 and msg['user'] == current_user:  # Sadece diğer mesajlar
+            if self.current_filter == 2 and msg['user'] == current_user:  # Only other messages
                 continue
 
-            # Aramayı uygula
+            # Apply search
             if self.current_search and self.current_search.lower() not in msg['message'].lower():
                 continue
 
@@ -1367,12 +1366,12 @@ class NukeChat(QtWidgets.QWidget):
         return filtered_messages
 
     def searchMessages(self):
-        """Mesajlarda arama yapar"""
+        """Searches messages"""
         self.current_search = self.searchInput.text()
         self.loadMessages()
 
     def clearSearch(self):
-        """Arama ve filtreleri temizler"""
+        """Clears search and filters"""
         self.searchInput.clear()
         self.filterCombo.setCurrentIndex(0)
         self.current_search = ""
@@ -1380,34 +1379,34 @@ class NukeChat(QtWidgets.QWidget):
         self.loadMessages()
 
     def filterMessages(self, index):
-        """Filtreleme tipini değiştirir"""
+        """Changes filter type"""
         self.current_filter = index
         self.loadMessages()
 
     def scrollToBottom(self):
-        """Scroll'u en alta hareket ettirir"""
+        """Scrolls to bottom"""
         QTimer = QtCore.QTimer
         QTimer.singleShot(100, lambda: self.scrollArea.verticalScrollBar().setValue(
             self.scrollArea.verticalScrollBar().maximum()
         ))
 
     def saveMessage(self, message):
-        """Mesajı JSON dosyasına kaydeder"""
+        """Saves message to JSON file"""
         max_retries = 5
         retry_count = 0
 
         while retry_count < max_retries:
             try:
-                # Dosyayı kilitlemeden önce biraz bekle (race condition'dan kaçınmak için)
+                # Wait a bit before locking file (to avoid race condition)
                 time.sleep(random.uniform(0.1, 0.5))
 
-                # Mevcut mesajları yükle veya yeni liste oluştur
+                # Load existing messages or create new list
                 messages = []
                 if os.path.exists(self.chat_file):
                     with open(self.chat_file, 'r', encoding='utf-8') as file:
                         messages = json.load(file)
 
-                # Yeni mesajı ekle
+                # Add new message
                 current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 new_message = {
                     "user": self.getCurrentUser(),
@@ -1416,41 +1415,40 @@ class NukeChat(QtWidgets.QWidget):
                 }
                 messages.append(new_message)
 
-                # Dosyaya kaydet
+                # Save to file
                 with open(self.chat_file, 'w', encoding='utf-8') as file:
                     json.dump(messages, file, ensure_ascii=False, indent=4)
 
-                self.updateStatus("Mesaj Gönderildi")
+                self.updateStatus("Message Sent")
                 return True
 
             except Exception as e:
                 retry_count += 1
                 if retry_count >= max_retries:
-                    self.updateStatus(f"Mesaj Kaydedilemedi: {str(e)}")
+                    self.updateStatus(f"Message Could Not Be Saved: {str(e)}")
                     return False
-                time.sleep(random.uniform(0.5, 1.0))  # Tekrar denemeden önce biraz daha uzun bekle
+                time.sleep(random.uniform(0.5, 1.0))  # Wait a bit longer before retrying
 
         return False
 
     def sendMessage(self):
-        """Mesaj gönderme işlevi"""
+        """Message sending function"""
         message = self.messageInput.toPlainText()
         if message.strip():
-            self.updateStatus("Mesaj Gönderiliyor...")
-            # Mesajı kaydet
+            self.updateStatus("Sending Message...")
+            # Save message
             if self.saveMessage(message):
-                # Bildirim oluştur
+                # Create notification
                 self.createNotification(message)
-                # Mesajları güncelleyerek göster
+                # Update and show messages
                 self.loadMessages()
-                # Mesaj alanını temizle
+                # Clear message area
                 self.messageInput.clear()
 
-
     def createNotification(self, message):
-        """Diğer kullanıcılara bildirim oluşturur"""
+        """Creates notification for other users"""
         try:
-            # Mevcut bildirimleri yükle
+            # Load existing notifications
             notifications = {}
             if os.path.exists(self.notifications_file):
                 try:
@@ -1459,20 +1457,20 @@ class NukeChat(QtWidgets.QWidget):
                 except:
                     notifications = {}
 
-            # Varlık (presence) dosyasından aktif kullanıcıları al
+            # Get active users from presence file
             active_users = []
             if os.path.exists(self.presence_file):
                 try:
                     with open(self.presence_file, 'r', encoding='utf-8') as file:
                         presence_data = json.load(file)
-                        # Kendimiz hariç tüm aktif kullanıcıları al
+                        # Get all active users except ourselves
                         for uid, data in presence_data.items():
                             if uid != self.user_id:
                                 active_users.append(uid)
                 except:
                     pass
 
-            # Her aktif kullanıcı için bildirim oluştur
+            # Create notification for each active user
             current_time = time.time()
             sender_name = self.getCurrentUser()
             message_preview = message[:50] + "..." if len(message) > 50 else message
@@ -1481,7 +1479,7 @@ class NukeChat(QtWidgets.QWidget):
                 if user_id not in notifications:
                     notifications[user_id] = []
 
-                # Bildirim ekle
+                # Add notification
                 notifications[user_id].append({
                     "timestamp": current_time,
                     "sender": sender_name,
@@ -1489,21 +1487,21 @@ class NukeChat(QtWidgets.QWidget):
                     "read": False
                 })
 
-            # Bildirimleri kaydet
+            # Save notifications
             with open(self.notifications_file, 'w', encoding='utf-8') as file:
                 json.dump(notifications, file, ensure_ascii=False)
 
         except Exception as e:
-            print(f"Bildirim oluşturma hatası: {str(e)}")
-            self.updateStatus(f"Bildirim oluşturma hatası: {str(e)}")
+            print(f"Error creating notification: {str(e)}")
+            self.updateStatus(f"Error creating notification: {str(e)}")
 
     def checkNotifications(self):
-        """Yeni bildirimleri kontrol eder"""
+        """Checks for new notifications"""
         try:
             if not os.path.exists(self.notifications_file):
                 return
 
-            # Bildirimleri yükle
+            # Load notifications
             notifications = {}
             try:
                 with open(self.notifications_file, 'r', encoding='utf-8') as file:
@@ -1511,63 +1509,63 @@ class NukeChat(QtWidgets.QWidget):
             except:
                 return
 
-            # Benim bildirimlerim
+            # My notifications
             my_notifications = notifications.get(self.user_id, [])
 
-            # Okunmamış bildirimleri filtrele
+            # Filter unread notifications
             unread_notifications = [n for n in my_notifications if not n.get("read", False)]
 
             if unread_notifications:
-                # Bildirim göster
+                # Show notification
                 count = len(unread_notifications)
 
-                # Tab başlığını güncelle
-                self.tabWidget.setTabText(0, f"Mesajlar ({count} yeni)")
+                # Update tab title
+                self.tabWidget.setTabText(0, f"Messages ({count} new)")
 
-                # Durum çubuğunu güncelle
+                # Update status bar
                 self.statusLabel.setStyleSheet("color: #FF9900; font-weight: bold; font-size: 12px;")
 
                 if count == 1:
-                    # Tek bir bildirim için
+                    # For single notification
                     notification = unread_notifications[0]
                     sender = notification["sender"]
                     message = notification["message"]
-                    self.statusLabel.setText(f"Yeni mesaj: {sender}: {message}")
+                    self.statusLabel.setText(f"New message: {sender}: {message}")
 
-                    # Toast bildirim göster
+                    # Show toast notification
                     toast = ToastNotification(message=message, sender=sender, parent=self, duration=5000)
                     toast.show()
 
                 else:
-                    # Birden fazla bildirim için
-                    self.statusLabel.setText(f"{count} yeni mesaj var!")
+                    # For multiple notifications
+                    self.statusLabel.setText(f"{count} new messages!")
 
-                    # İlk mesaj için tam bildirim
+                    # Full notification for first message
                     notification = unread_notifications[0]
                     first_sender = notification["sender"]
                     first_message = notification["message"]
 
-                    # Diğer mesajlar için özet bilgi
-                    summary = f"... ve {count - 1} mesaj daha"
+                    # Summary info for other messages
+                    summary = f"... and {count - 1} more messages"
 
-                    # Toast bildirim göster
+                    # Show toast notification
                     toast = ToastNotification(message=f"{first_message}\n\n{summary}",
                                               sender=first_sender,
                                               parent=self,
                                               duration=5000)
                     toast.show()
 
-                # Bildirimleri okundu olarak işaretle
+                # Mark notifications as read
                 for notification in my_notifications:
                     notification["read"] = True
 
-                # Güncellenmiş bildirimleri kaydet
+                # Save updated notifications
                 notifications[self.user_id] = my_notifications
                 with open(self.notifications_file, 'w', encoding='utf-8') as file:
                     json.dump(notifications, file, ensure_ascii=False)
 
         except Exception as e:
-            print(f"Bildirim kontrol hatası: {str(e)}")
-            self.updateStatus(f"Bildirim kontrol hatası: {str(e)}")
+            print(f"Error checking notifications: {str(e)}")
+            self.updateStatus(f"Error checking notifications: {str(e)}")
 
-panels.registerWidgetAsPanel('NukeChat', 'NukeChat', 'uk.co.thefoundry.NukeChat')
+    panels.registerWidgetAsPanel('NukeChat', 'NukeChat', 'uk.co.thefoundry.NukeChat')
