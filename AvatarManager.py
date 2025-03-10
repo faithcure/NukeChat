@@ -1,8 +1,8 @@
 """
 AvatarManager.py
 
-Bu modül, NukeChat uygulaması için kullanıcı avatarlarının yönetimini sağlar.
-Kullanıcı avatarlarını yükleme, değiştirme, silme ve gösterme işlevlerini içerir.
+This module provides user avatar management for the NukeChat application.
+It includes functions for loading, changing, deleting, and displaying user avatars.
 """
 
 import os
@@ -16,59 +16,59 @@ import random
 import hashlib
 
 class AvatarManager:
-    """Kullanıcı avatarları için yönetim sınıfı"""
+    """Management class for user avatars"""
 
     def __init__(self, db_folder):
         """
-        Avatar yönetim sınıfını başlatır
+        Initializes the avatar management class
 
         Args:
-            db_folder (str): Avatar dosyalarının saklanacağı ana klasör yolu
+            db_folder (str): The main folder path where avatar files will be stored
         """
         self.db_folder = db_folder
 
-        # Avatar klasörü yolunu oluştur
+        # Create the avatar folder path
         self.avatar_folder = os.path.join(self.db_folder, "avatars")
 
-        # Avatar klasörü yoksa oluştur
+        # Create the avatar folder if it doesn't exist
         if not os.path.exists(self.avatar_folder):
             try:
                 os.makedirs(self.avatar_folder)
-                print(f"\"avatars\" klasörü oluşturuldu: {self.avatar_folder}")
+                print(f"\"avatars\" folder created: {self.avatar_folder}")
             except Exception as e:
-                print(f"Avatar klasörü oluşturma hatası: {str(e)}")
+                print(f"Error creating avatar folder: {str(e)}")
 
     def get_avatar_path(self, user_id):
         """
-        Kullanıcı ID'sine göre avatar dosya yolunu döndürür
+        Returns the avatar file path based on the user ID
 
         Args:
-            user_id (str): Kullanıcı benzersiz ID'si
+            user_id (str): The unique user ID
 
         Returns:
-            str: Avatar dosyasının tam yolu
+            str: The full path of the avatar file
         """
-        # Kullanıcı ID'sini dosya adı olarak kullanarak avatar yolunu belirle
+        # Determine the avatar path using the user ID as the file name
         return os.path.join(self.avatar_folder, f"{user_id}.png")
 
     def load_avatar(self, user_id, size=50):
         """
-        Belirli bir kullanıcının avatarını yükler
+        Loads the avatar of a specific user
 
         Args:
-            user_id (str): Kullanıcı benzersiz ID'si
-            size (int): Avatar görüntüsü boyutu (piksel cinsinden)
+            user_id (str): The unique user ID
+            size (int): The size of the avatar image (in pixels)
 
         Returns:
-            QPixmap: Avatar görüntüsü (dosya yoksa oluşturulan varsayılan avatar)
+            QPixmap: The avatar image (default avatar if file does not exist)
         """
         avatar_path = self.get_avatar_path(user_id)
 
-        # Dosya varsa yükle
+        # Load the file if it exists
         if os.path.exists(avatar_path):
             original_pixmap = QtGui.QPixmap(avatar_path)
 
-            # Yuvarlatılmış avatar oluştur
+            # Create a rounded avatar
             rounded_pixmap = QtGui.QPixmap(size, size)
             rounded_pixmap.fill(QtCore.Qt.transparent)
 
@@ -76,16 +76,16 @@ class AvatarManager:
             painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
             painter.setRenderHint(QtGui.QPainter.SmoothPixmapTransform, True)
 
-            # Daire şeklinde bir maske oluştur
+            # Create a circular mask
             path = QtGui.QPainterPath()
             path.addEllipse(0, 0, size, size)
             painter.setClipPath(path)
 
-            # Orijinal resmi ölçeklendirip çiz
+            # Scale and draw the original image
             scaled_pixmap = original_pixmap.scaled(size, size, QtCore.Qt.KeepAspectRatio,
                                                    QtCore.Qt.SmoothTransformation)
 
-            # Resmi ortalayarak çiz
+            # Draw the image centered
             x_offset = (size - scaled_pixmap.width()) // 2
             y_offset = (size - scaled_pixmap.height()) // 2
             painter.drawPixmap(x_offset, y_offset, scaled_pixmap)
@@ -93,55 +93,55 @@ class AvatarManager:
             painter.end()
             return rounded_pixmap
         else:
-            # Varsayılan avatar oluştur
+            # Create a default avatar
             return self.create_default_avatar(user_id, size)
 
     def create_default_avatar(self, user_id, size=50, username=None):
         """
-        Varsayılan bir avatar oluşturur (renkli arka plan üzerinde isim baş harfleri)
+        Creates a default avatar (initials on a colored background)
 
         Args:
-            user_id (str): Kullanıcı benzersiz ID'si
-            size (int): Avatar görüntüsü boyutu (piksel cinsinden)
-            username (str, optional): Kullanıcı adı (belirtilmezse user_id kullanılır)
+            user_id (str): The unique user ID
+            size (int): The size of the avatar image (in pixels)
+            username (str, optional): The username (if not specified, user_id is used)
 
         Returns:
-            QPixmap: Oluşturulan varsayılan avatar görüntüsü
+            QPixmap: The created default avatar image
         """
         pixmap = QtGui.QPixmap(size, size)
         pixmap.fill(QtCore.Qt.transparent)
 
-        # Kullanıcı ID'sine göre tutarlı bir renk üret
+        # Generate a consistent color based on the user ID
         color = self._generate_color_from_id(user_id)
 
-        # Ressam oluştur
+        # Create a painter
         painter = QtGui.QPainter(pixmap)
         painter.setRenderHint(QtGui.QPainter.Antialiasing, True)
 
-        # Arkaplan çemberi çiz
+        # Draw the background circle
         painter.setBrush(QtGui.QBrush(color))
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawEllipse(0, 0, size, size)
 
-        # İsim baş harflerini belirle
+        # Determine the initials
         if username:
             initials = self._get_initials(username)
         else:
-            # Kullanıcı ID'sinden bir şeyler çıkarmaya çalış
+            # Try to extract something from the user ID
             parts = user_id.split('_')
             if len(parts) > 0:
                 initials = self._get_initials(parts[0])
             else:
                 initials = user_id[:2].upper()
 
-        # Metni yazma ayarları
+        # Text drawing settings
         font = QtGui.QFont()
-        font.setPixelSize(size * 0.4)  # Boyut ayarı
+        font.setPixelSize(size * 0.4)  # Size adjustment
         font.setBold(True)
         painter.setFont(font)
-        painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))  # Beyaz metin
+        painter.setPen(QtGui.QPen(QtGui.QColor(255, 255, 255)))  # White text
 
-        # Metni merkeze hizalı çiz
+        # Draw the text centered
         rect = QtCore.QRect(0, 0, size, size)
         painter.drawText(rect, QtCore.Qt.AlignCenter, initials)
 
@@ -150,53 +150,53 @@ class AvatarManager:
 
     def _get_initials(self, name):
         """
-        İsimden baş harfleri çıkarır
+        Extracts initials from a name
 
         Args:
-            name (str): Kullanıcı adı veya isim
+            name (str): The username or name
 
         Returns:
-            str: İsmin baş harfleri (en fazla 2 harf)
+            str: The initials of the name (maximum 2 letters)
         """
-        # Boşluklarla ayrılmış isimleri parçalara ayır
+        # Split the name into parts by spaces
         parts = name.split()
         initials = ""
 
         if len(parts) >= 2:
-            # İlk iki kelimenin baş harflerini al
+            # Take the first letters of the first two words
             initials = parts[0][0].upper() + parts[1][0].upper()
         elif len(parts) == 1:
-            # Tek kelime ise, ilk iki harfi al veya tek harf varsa onu kullan
+            # If it's a single word, take the first two letters or use the single letter if only one
             if len(parts[0]) >= 2:
                 initials = parts[0][0].upper() + parts[0][1].upper()
             else:
                 initials = parts[0][0].upper()
         else:
-            # Hiç kelime yoksa varsayılan olarak "U" harfini kullan (User)
+            # If there are no words, use the default letter "U" (User)
             initials = "U"
 
-        return initials[:2]  # En fazla 2 harf
+        return initials[:2]  # Maximum 2 letters
 
     def _generate_color_from_id(self, user_id):
         """
-        Kullanıcı ID'sine göre tutarlı bir renk üretir
+        Generates a consistent color based on the user ID
 
         Args:
-            user_id (str): Kullanıcı benzersiz ID'si
+            user_id (str): The unique user ID
 
         Returns:
-            QColor: Oluşturulan renk
+            QColor: The generated color
         """
-        # Kullanıcı ID'sinden hash oluştur
+        # Create a hash from the user ID
         hash_obj = hashlib.md5(user_id.encode())
         hash_hex = hash_obj.hexdigest()
 
-        # Hash'in ilk 6 karakterini alarak RGB rengi oluştur
+        # Create an RGB color from the first 6 characters of the hash
         r = int(hash_hex[0:2], 16)
         g = int(hash_hex[2:4], 16)
         b = int(hash_hex[4:6], 16)
 
-        # Renkler çok koyu olmasın (okunabilirlik için)
+        # Ensure the colors are not too dark (for readability)
         min_brightness = 60
         r = max(r, min_brightness)
         g = max(g, min_brightness)
@@ -206,37 +206,37 @@ class AvatarManager:
 
     def save_avatar(self, user_id, pixmap):
         """
-        Avatar görüntüsünü kaydeder
+        Saves the avatar image
 
         Args:
-            user_id (str): Kullanıcı benzersiz ID'si
-            pixmap (QPixmap): Kaydedilecek avatar görüntüsü
+            user_id (str): The unique user ID
+            pixmap (QPixmap): The avatar image to be saved
 
         Returns:
-            bool: İşlem başarılıysa True, değilse False
+            bool: True if the operation is successful, False otherwise
         """
         try:
             avatar_path = self.get_avatar_path(user_id)
 
-            # Boyut kontrolü yap ve gerekirse yeniden boyutlandır
+            # Check the size and resize if necessary
             if pixmap.width() > 150 or pixmap.height() > 150:
                 pixmap = pixmap.scaled(150, 150, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
 
-            # PNG olarak kaydet
+            # Save as PNG
             return pixmap.save(avatar_path, "PNG")
         except Exception as e:
-            print(f"Avatar kaydetme hatası: {str(e)}")
+            print(f"Error saving avatar: {str(e)}")
             return False
 
     def delete_avatar(self, user_id):
         """
-        Kullanıcı avatarını siler
+        Deletes the user's avatar
 
         Args:
-            user_id (str): Kullanıcı benzersiz ID'si
+            user_id (str): The unique user ID
 
         Returns:
-            bool: İşlem başarılıysa True, değilse False
+            bool: True if the operation is successful, False otherwise
         """
         try:
             avatar_path = self.get_avatar_path(user_id)
@@ -245,22 +245,22 @@ class AvatarManager:
                 return True
             return False
         except Exception as e:
-            print(f"Avatar silme hatası: {str(e)}")
+            print(f"Error deleting avatar: {str(e)}")
             return False
 
 
 class AvatarUploadDialog(QtWidgets.QDialog):
-    """Avatar yükleme ve düzenleme için iletişim kutusu"""
+    """Dialog for uploading and editing avatars"""
 
     def __init__(self, avatar_manager, user_id, username=None, parent=None):
         """
-        Avatar yükleme iletişim kutusunu başlatır
+        Initializes the avatar upload dialog
 
         Args:
-            avatar_manager (AvatarManager): Avatar yönetimi için referans
-            user_id (str): Kullanıcı benzersiz ID'si
-            username (str, optional): Kullanıcı adı
-            parent (QWidget, optional): Ebeveyn widget
+            avatar_manager (AvatarManager): Reference for avatar management
+            user_id (str): The unique user ID
+            username (str, optional): The username
+            parent (QWidget, optional): Parent widget
         """
         super(AvatarUploadDialog, self).__init__(parent)
 
@@ -269,7 +269,7 @@ class AvatarUploadDialog(QtWidgets.QDialog):
         self.username = username
         self.current_pixmap = None
 
-        self.setWindowTitle("Avatar Ayarları")
+        self.setWindowTitle("Avatar Settings")
         self.setMinimumWidth(400)
         self.setStyleSheet("""
             QDialog {
@@ -302,18 +302,18 @@ class AvatarUploadDialog(QtWidgets.QDialog):
             }
         """)
 
-        # Ana düzen
+        # Main layout
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
-        # Bilgi etiketi
-        info_label = QtWidgets.QLabel("Avatar resminizi yükleyin veya değiştirin. "
-                                     "Maksimum boyut 150x150 pikseldir.")
+        # Info label
+        info_label = QtWidgets.QLabel("Upload or change your avatar image. "
+                                     "Maximum size is 150x150 pixels.")
         info_label.setWordWrap(True)
         layout.addWidget(info_label)
 
-        # Avatar önizleme alanı
+        # Avatar preview area
         preview_layout = QtWidgets.QHBoxLayout()
         preview_layout.setAlignment(QtCore.Qt.AlignCenter)
 
@@ -329,90 +329,90 @@ class AvatarUploadDialog(QtWidgets.QDialog):
         preview_layout.addWidget(self.avatar_preview)
         layout.addLayout(preview_layout)
 
-        # Mevcut avatarı yükle
+        # Load the current avatar
         self.load_current_avatar()
 
-        # Butonlar
+        # Buttons
         buttons_layout = QtWidgets.QHBoxLayout()
         buttons_layout.setSpacing(10)
 
-        # Avatar yükleme butonu
-        self.upload_button = QtWidgets.QPushButton("Dosyadan Yükle")
+        # Upload avatar button
+        self.upload_button = QtWidgets.QPushButton("Upload from File")
         self.upload_button.clicked.connect(self.upload_avatar)
         buttons_layout.addWidget(self.upload_button)
 
-        # Avatar silme butonu
-        self.delete_button = QtWidgets.QPushButton("Avatarı Sil")
+        # Delete avatar button
+        self.delete_button = QtWidgets.QPushButton("Delete Avatar")
         self.delete_button.setObjectName("deleteButton")
         self.delete_button.clicked.connect(self.delete_avatar)
         buttons_layout.addWidget(self.delete_button)
 
         layout.addLayout(buttons_layout)
 
-        # Alt düzen - Kapat butonu
+        # Bottom layout - Close button
         bottom_layout = QtWidgets.QHBoxLayout()
         bottom_layout.addStretch(1)
 
-        self.close_button = QtWidgets.QPushButton("Kapat")
+        self.close_button = QtWidgets.QPushButton("Close")
         self.close_button.clicked.connect(self.accept)
         bottom_layout.addWidget(self.close_button)
 
         layout.addLayout(bottom_layout)
 
     def load_current_avatar(self):
-        """Mevcut avatarı yükler ve gösterir"""
+        """Loads and displays the current avatar"""
         pixmap = self.avatar_manager.load_avatar(self.user_id, 120)
         self.current_pixmap = pixmap
         self.avatar_preview.setPixmap(pixmap)
 
     def upload_avatar(self):
-        """Dosya seçme işlemini başlatır ve avatarı günceller"""
+        """Starts the file selection process and updates the avatar"""
         file_dialog = QtWidgets.QFileDialog(self)
-        file_dialog.setWindowTitle("Avatar Resmi Seç")
+        file_dialog.setWindowTitle("Select Avatar Image")
         file_dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
-        file_dialog.setNameFilter("Resim Dosyaları (*.png *.jpg *.jpeg *.bmp)")
+        file_dialog.setNameFilter("Image Files (*.png *.jpg *.jpeg *.bmp)")
 
         if file_dialog.exec_():
             selected_files = file_dialog.selectedFiles()
             if selected_files:
                 image_path = selected_files[0]
                 try:
-                    # Resmi yükle
+                    # Load the image
                     pixmap = QtGui.QPixmap(image_path)
 
-                    # Yeniden boyutlandır
+                    # Resize
                     pixmap = pixmap.scaled(120, 120, QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
 
-                    # Önizleme göster
+                    # Show preview
                     self.avatar_preview.setPixmap(pixmap)
                     self.current_pixmap = pixmap
 
-                    # Kaydet
+                    # Save
                     success = self.avatar_manager.save_avatar(self.user_id, pixmap)
                     if success:
-                        QtWidgets.QMessageBox.information(self, "Başarılı", "Avatar başarıyla güncellendi.")
+                        QtWidgets.QMessageBox.information(self, "Success", "Avatar updated successfully.")
                     else:
-                        QtWidgets.QMessageBox.warning(self, "Hata", "Avatar kaydedilirken bir hata oluştu.")
+                        QtWidgets.QMessageBox.warning(self, "Error", "An error occurred while saving the avatar.")
 
                 except Exception as e:
-                    QtWidgets.QMessageBox.critical(self, "Hata", f"Resim yüklenirken hata oluştu: {str(e)}")
+                    QtWidgets.QMessageBox.critical(self, "Error", f"Error loading image: {str(e)}")
 
     def delete_avatar(self):
-        """Mevcut avatarı siler ve varsayılan avatara döner"""
+        """Deletes the current avatar and reverts to the default avatar"""
         reply = QtWidgets.QMessageBox.question(
             self,
-            "Avatarı Sil",
-            "Avatar resminizi silmek istediğinizden emin misiniz?",
+            "Delete Avatar",
+            "Are you sure you want to delete your avatar image?",
             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
             QtWidgets.QMessageBox.No
         )
 
         if reply == QtWidgets.QMessageBox.Yes:
-            # Avatarı sil
+            # Delete the avatar
             success = self.avatar_manager.delete_avatar(self.user_id)
 
-            # Varsayılan avatarı göster
+            # Show the default avatar
             self.load_current_avatar()
 
             if success:
-                QtWidgets.QMessageBox.information(self, "Başarılı", "Avatar başarıyla silindi.")
+                QtWidgets.QMessageBox.information(self, "Success", "Avatar deleted successfully.")
